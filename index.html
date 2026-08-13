@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Missão Matemática — 5º ano</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;700;800&family=Nunito:wght@400;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0F1B3D; --card:#182852; --card2:#1F3266;
+    --ink:#F5F7FF; --ink2:#AAB8E8; --line:#2E4180;
+    --sun:#FFC947; --mint:#3DDC97; --coral:#FF6B6B; --sky:#5AA9FF;
+    --radius:16px;
+  }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  body{
+    font-family:'Nunito',sans-serif; background:var(--bg); color:var(--ink);
+    min-height:100vh; padding:20px 16px 48px;
+  }
+  .wrap{max-width:640px; margin:0 auto;}
+  h1{
+    font-family:'Baloo 2',cursive; font-weight:800; font-size:clamp(26px,6vw,36px);
+    text-align:center; letter-spacing:.5px;
+  }
+  h1 .star{color:var(--sun);}
+  .sub{text-align:center; color:var(--ink2); font-size:14px; margin:4px 0 22px;}
+  .modes{display:grid; grid-template-columns:repeat(2,1fr); gap:10px; margin-bottom:16px;}
+  @media(min-width:560px){.modes{grid-template-columns:repeat(4,1fr);}}
+  .mode{
+    font-family:'Baloo 2',cursive; font-weight:700; font-size:14px;
+    background:var(--card); color:var(--ink2); border:2px solid var(--line);
+    border-radius:var(--radius); padding:12px 6px; cursor:pointer;
+    display:flex; flex-direction:column; align-items:center; gap:4px;
+    transition:transform .12s ease, border-color .12s ease, color .12s ease;
+  }
+  .mode span.emo{font-size:24px;}
+  .mode:hover{transform:translateY(-2px);}
+  .mode.active{border-color:var(--sun); color:var(--sun); background:var(--card2);}
+  .stats{display:flex; gap:10px; margin-bottom:16px;}
+  .stat{
+    flex:1; background:var(--card); border-radius:var(--radius); padding:10px 14px;
+    border:2px solid var(--line);
+  }
+  .stat p{font-size:11px; color:var(--ink2); text-transform:uppercase; letter-spacing:1px;}
+  .stat b{font-family:'Baloo 2',cursive; font-size:24px; font-weight:800;}
+  .stat b.sun{color:var(--sun);} .stat b.mint{color:var(--mint);} .stat b.sky{color:var(--sky);}
+  .arena{
+    background:var(--card); border:2px solid var(--line); border-radius:20px;
+    padding:22px 20px; position:relative; overflow:hidden;
+  }
+  .mode-tag{
+    display:inline-block; font-size:11px; font-weight:700; letter-spacing:1px;
+    text-transform:uppercase; color:var(--sky); background:rgba(90,169,255,.12);
+    border-radius:999px; padding:4px 12px; margin-bottom:12px;
+  }
+  #question{font-size:18px; line-height:1.6; font-weight:700; margin-bottom:16px;}
+  #fracVis{display:none; gap:4px; margin-bottom:16px;}
+  #fracVis div{flex:1; height:36px; max-width:46px; border-radius:6px; border:2px solid;}
+  .controls{display:flex; gap:10px; flex-wrap:wrap;}
+  input#answer{
+    flex:1; min-width:140px; max-width:220px; font-family:'Nunito',sans-serif;
+    font-size:18px; font-weight:700; padding:12px 14px; border-radius:12px;
+    border:2px solid var(--line); background:var(--bg); color:var(--ink); outline:none;
+  }
+  input#answer:focus{border-color:var(--sun);}
+  button.act{
+    font-family:'Baloo 2',cursive; font-weight:700; font-size:16px; cursor:pointer;
+    border:none; border-radius:12px; padding:12px 20px;
+    transition:transform .1s ease;
+  }
+  button.act:active{transform:scale(.96);}
+  #check{background:var(--sun); color:#3A2A00;}
+  #next{background:var(--card2); color:var(--ink); border:2px solid var(--line);}
+  #feedback{
+    display:none; margin-top:16px; border-radius:12px; padding:14px 16px;
+    font-size:15px; line-height:1.6;
+  }
+  #feedback.ok{background:rgba(61,220,151,.15); border:2px solid var(--mint); color:#C8F7E4;}
+  #feedback.warn{background:rgba(255,201,71,.12); border:2px solid var(--sun); color:#FFE9B3;}
+  #feedback.err{background:rgba(255,107,107,.12); border:2px solid var(--coral); color:#FFD0D0;}
+  .levelup{
+    position:absolute; inset:0; background:rgba(15,27,61,.92); display:none;
+    flex-direction:column; align-items:center; justify-content:center; gap:8px;
+    font-family:'Baloo 2',cursive; text-align:center; z-index:5;
+  }
+  .levelup b{font-size:34px; color:var(--sun);}
+  .levelup p{color:var(--ink2); font-size:15px;}
+  footer{text-align:center; color:var(--ink2); font-size:12px; margin-top:24px;}
+  @media (prefers-reduced-motion: reduce){ *{transition:none !important;} }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1><span class="star">★</span> Missão Matemática</h1>
+  <p class="sub">Escolha sua missão e mostre que você é craque nos números!</p>
+
+  <div class="modes" id="modes">
+    <button class="mode active" data-mode="ledger"><span class="emo">💰</span>Banco</button>
+    <button class="mode" data-mode="expr"><span class="emo">🧮</span>Expressões</button>
+    <button class="mode" data-mode="dec"><span class="emo">🏷️</span>Decimais</button>
+    <button class="mode" data-mode="frac"><span class="emo">🍕</span>Frações</button>
+  </div>
+
+  <div class="stats">
+    <div class="stat"><p>Pontos</p><b class="sun" id="score">0</b></div>
+    <div class="stat"><p>Sequência</p><b class="mint" id="streak">0 🔥</b></div>
+    <div class="stat"><p>Nível</p><b class="sky" id="level">1</b></div>
+    <div class="stat"><p>Recorde</p><b id="best">0</b></div>
+  </div>
+
+  <div class="arena">
+    <div class="levelup" id="levelup"><b>NÍVEL NOVO! 🚀</b><p>As perguntas vão ficar mais desafiadoras…</p></div>
+    <span class="mode-tag" id="modeLabel">Banco da família</span>
+    <p id="question">Carregando…</p>
+    <div id="fracVis" style="display:none;"></div>
+    <div class="controls">
+      <input id="answer" type="text" inputmode="decimal" placeholder="Sua resposta" autocomplete="off">
+      <button class="act" id="check">Conferir ✓</button>
+      <button class="act" id="next">Pular →</button>
+    </div>
+    <div id="feedback"></div>
+  </div>
+
+  <footer>Dica: estime a resposta antes de calcular. Você acha que vai dar mais ou menos?</footer>
+</div>
+
+<script>
+const S = { mode:'ledger', score:0, streak:0, level:1, ans:null, expl:'', tries:0, best:0 };
+const names = { ledger:'Banco da família', expr:'Expressões numéricas', dec:'Decimais', frac:'Frações' };
+const store = {
+  get(k){ try{ return localStorage.getItem(k); }catch(e){ return null; } },
+  set(k,v){ try{ localStorage.setItem(k,v); }catch(e){} }
+};
+S.best = parseInt(store.get('mm_best')||'0',10);
+document.getElementById('best').textContent = S.best;
+
+const R=(a,b)=>Math.floor(Math.random()*(b-a+1))+a;
+const money=v=>'R$ '+v.toFixed(2).replace('.',',');
+
+function genLedger(lv){
+  const kids=['Lucas','Sofia','Pedro','Ana','Rafa','Bia'];
+  const n=kids[R(0,5)];
+  if(lv===1){
+    const a=R(20,80), g=R(5,a-5);
+    S.ans=a-g;
+    S.expl=`Começou com ${a}. Débito (dinheiro que SAI) de ${g}. Então ${a} − ${g} = ${a-g}. Lembre: crédito é entrada (+), débito é saída (−).`;
+    return `${n} tinha R$ ${a} guardados. Comprou um lanche de R$ ${g} (débito). Qual o saldo final?`;
+  }
+  if(lv===2){
+    const a=R(50,150), c=R(10,40), d=R(10,40);
+    S.ans=a+c-d;
+    S.expl=`Na ordem: ${a} + ${c} = ${a+c} (crédito entra), depois ${a+c} − ${d} = ${a+c-d} (débito sai).`;
+    return `Extrato de ${n}: saldo inicial R$ ${a} | crédito de mesada R$ ${c} | débito de figurinhas R$ ${d}. Saldo final?`;
+  }
+  const a=R(100,300), d1=R(20,60), c=R(30,80), d2=R(20,60);
+  S.ans=a-d1+c-d2;
+  S.expl=`Linha por linha: ${a} − ${d1} = ${a-d1}, + ${c} = ${a-d1+c}, − ${d2} = ${a-d1+c-d2}. Truque de banqueiro: some todos os créditos, some todos os débitos, e subtraia um do outro!`;
+  return `Extrato de ${n}: saldo R$ ${a} | débito R$ ${d1} | crédito R$ ${c} | débito R$ ${d2}. Saldo final?`;
+}
+
+function genExpr(lv){
+  if(lv===1){
+    const a=R(2,15), b=R(3,15), c=R(2,b-1);
+    S.ans=a+(b-c);
+    S.expl=`Parênteses primeiro: (${b} − ${c}) = ${b-c}. Depois ${a} + ${b-c} = ${a+(b-c)}.`;
+    return `Quanto vale: ${a} + (${b} − ${c}) ?`;
+  }
+  if(lv===2){
+    const a=R(15,30), b=R(2,6), c=R(2,6), d=R(1,10);
+    S.ans=a-(b+c)+d;
+    S.expl=`(${b} + ${c}) = ${b+c}. Da esquerda para a direita: ${a} − ${b+c} = ${a-(b+c)}, + ${d} = ${a-(b+c)+d}.`;
+    return `Quanto vale: ${a} − (${b} + ${c}) + ${d} ?`;
+  }
+  const a=R(5,12), b=R(3,Math.min(8,a-1)), c=R(2,6), e=R(12,25);
+  S.ans=e-(a-b)-c;
+  S.expl=`Parênteses: (${a} − ${b}) = ${a-b}. Depois: ${e} − ${a-b} = ${e-(a-b)}, − ${c} = ${e-(a-b)-c}. Regra de ouro: parênteses primeiro, depois esquerda → direita.`;
+  return `Quanto vale: ${e} − (${a} − ${b}) − ${c} ?`;
+}
+
+function genDec(lv){
+  if(lv<=2){
+    const a=R(100,999)/100, b=R(100,999)/100;
+    if(Math.random()>0.4){
+      S.ans=+(a+b).toFixed(2);
+      S.expl=`Alinhe as vírgulas! ${money(a)} + ${money(b)}: centavos com centavos, reais com reais → ${money(S.ans)}.`;
+      return `Um caderno custa ${money(a)} e uma caneta ${money(b)}. Quanto custam juntos? (ex: 12,50)`;
+    }
+    const big=Math.max(a,b), sm=Math.min(a,b);
+    S.ans=+(big-sm).toFixed(2);
+    S.expl=`Vírgulas alinhadas: ${money(big)} − ${money(sm)} = ${money(S.ans)}. Se os centavos de cima forem menores, "empresta" 1 real (= 100 centavos).`;
+    return `Você tem ${money(big)} e gasta ${money(sm)}. Quanto sobra? (ex: 3,45)`;
+  }
+  const a=R(1000,4999)/100, b=R(100,999)/100, c=R(100,999)/100;
+  S.ans=+(a-b-c).toFixed(2);
+  S.expl=`Passo a passo: ${money(a)} − ${money(b)} = ${money(+(a-b).toFixed(2))}, depois − ${money(c)} = ${money(S.ans)}. Estime antes e confira se a resposta faz sentido!`;
+  return `Você tem ${money(a)}. Compra pão por ${money(b)} e suco por ${money(c)}. Qual o troco? (ex: 30,25)`;
+}
+
+function genFrac(lv){
+  if(lv===1){
+    const d=R(4,10), a=R(1,d-2), b=R(1,d-a-1);
+    S.ans=`${a+b}/${d}`;
+    S.expl=`Denominadores iguais: some só os de cima. ${a}/${d} + ${b}/${d} = ${a+b}/${d}. O de baixo diz o TAMANHO do pedaço — ele não muda!`;
+    drawFrac(d,a,b);
+    return `Uma pizza foi cortada em ${d} pedaços. Você comeu ${a}/${d} e seu amigo ${b}/${d}. Quanto comeram juntos? (ex: 3/8)`;
+  }
+  if(lv===2){
+    const d=R(5,12), a=R(3,d-1), b=R(1,a-1);
+    S.ans=`${a-b}/${d}`;
+    S.expl=`Mesmo denominador: subtraia os de cima. ${a}/${d} − ${b}/${d} = ${a-b}/${d}.`;
+    drawFrac(d,a-b,0);
+    return `De uma barra com ${d} quadradinhos de chocolate, sobraram ${a}/${d}. Você comeu ${b}/${d}. Quanto sobrou? (ex: 2/7)`;
+  }
+  const pairs=[[2,4],[3,6],[2,6],[4,8],[2,8],[3,9],[5,10],[2,10],[3,12],[4,12]];
+  const p=pairs[R(0,pairs.length-1)];
+  const d1=p[0], d2=p[1], m=d2/d1;
+  const a=R(1,d1-1), b=R(1,d2-1);
+  const num=a*m+b;
+  S.ans=`${num}/${d2}`;
+  S.expl=`Denominadores diferentes! Transforme ${a}/${d1}: multiplique em cima e embaixo por ${m} → ${a*m}/${d2}. Agora sim: ${a*m}/${d2} + ${b}/${d2} = ${num}/${d2}. Só dá para somar pedaços do MESMO tamanho!`;
+  drawFrac(d2, Math.min(num,d2), 0);
+  return `Some: ${a}/${d1} + ${b}/${d2}. (Dica: iguale o tamanho dos pedaços primeiro. Ex de resposta: 5/6)`;
+}
+
+function drawFrac(total, fill, fill2){
+  const v=document.getElementById('fracVis');
+  let h='';
+  for(let i=0;i<total;i++){
+    let bg='transparent', bd='var(--line)';
+    if(i<fill){ bg='rgba(61,220,151,.35)'; bd='var(--mint)'; }
+    else if(i<fill+fill2){ bg='rgba(255,201,71,.35)'; bd='var(--sun)'; }
+    h+=`<div style="background:${bg}; border-color:${bd};"></div>`;
+  }
+  v.innerHTML=h;
+  v.style.display='flex';
+}
+
+function newQuestion(){
+  S.tries=0;
+  document.getElementById('fracVis').style.display='none';
+  const fb=document.getElementById('feedback');
+  fb.style.display='none'; fb.className='';
+  const inp=document.getElementById('answer');
+  inp.value='';
+  const g={ledger:genLedger, expr:genExpr, dec:genDec, frac:genFrac}[S.mode];
+  document.getElementById('question').textContent=g(Math.min(S.level,3));
+  inp.focus();
+}
+
+function normalize(s){ return s.trim().toLowerCase().replace(',','.').replace(/\s/g,'').replace('r$',''); }
+
+function refresh(){
+  document.getElementById('score').textContent=S.score;
+  document.getElementById('streak').textContent=S.streak+' 🔥';
+  document.getElementById('level').textContent=S.level;
+  if(S.score>S.best){ S.best=S.score; store.set('mm_best', String(S.best)); }
+  document.getElementById('best').textContent=S.best;
+}
+
+function check(){
+  const raw=document.getElementById('answer').value;
+  if(!raw.trim() || S.ans===null) return;
+  const fb=document.getElementById('feedback');
+  let ok=false;
+  if(typeof S.ans==='string' && S.ans.includes('/')){
+    const u=raw.trim().replace(/\s/g,'');
+    const [an,ad]=S.ans.split('/').map(Number);
+    if(u.includes('/')){ const [un,ud]=u.split('/').map(Number); ok = ud>0 && un*ad===an*ud; }
+  } else {
+    const v=parseFloat(normalize(raw));
+    ok=!isNaN(v) && Math.abs(v-S.ans)<0.005;
+  }
+  if(ok){
+    S.streak++; S.score+=10*Math.min(S.level,3);
+    const msgs=['Isso aí! 🎉','Mandou bem! 💪','Exato! ⭐','Perfeito! 🏆','Craque! 🚀'];
+    fb.className='ok';
+    fb.innerHTML='<b>'+msgs[R(0,4)]+'</b> '+S.expl;
+    S.ans=null;
+    if(S.streak%4===0 && S.level<3){
+      S.level++;
+      const lu=document.getElementById('levelup');
+      lu.style.display='flex';
+      setTimeout(()=>{ lu.style.display='none'; }, 1800);
+    }
+  } else {
+    S.tries++; S.streak=0;
+    if(S.tries<2){
+      fb.className='warn';
+      fb.innerHTML='<b>Quase! 🤏</b> Tente de novo. Dica: a resposta vai ser MAIOR ou MENOR que o número que você começou?';
+    } else {
+      fb.className='err';
+      fb.innerHTML='<b>Vamos ver juntos: 🧐</b> '+S.expl;
+      S.ans=null;
+    }
+  }
+  refresh();
+  fb.style.display='block';
+}
+
+document.getElementById('modes').addEventListener('click', e=>{
+  const b=e.target.closest('.mode'); if(!b) return;
+  document.querySelectorAll('.mode').forEach(m=>m.classList.remove('active'));
+  b.classList.add('active');
+  S.mode=b.dataset.mode; S.level=1; S.streak=0;
+  document.getElementById('modeLabel').textContent=names[S.mode];
+  refresh();
+  newQuestion();
+});
+document.getElementById('check').addEventListener('click', check);
+document.getElementById('next').addEventListener('click', newQuestion);
+document.getElementById('answer').addEventListener('keydown', e=>{ if(e.key==='Enter') check(); });
+newQuestion();
+</script>
+</body>
+</html>
