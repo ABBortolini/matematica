@@ -46,8 +46,8 @@
   .arrayVis .row{display:flex; gap:5px; margin-bottom:5px;}
   .arrayVis .dot{width:15px; height:15px; border-radius:50%; background:rgba(94,234,212,.32);
     border:1.5px solid var(--aurora);}
-  .arrayVis .cap{font-family:'Space Grotesk',monospace; font-size:10.5px; letter-spacing:1px;
-    text-transform:uppercase; color:var(--ink2); margin-top:8px;}
+  .arrayVis .cap{font-family:'Outfit',sans-serif; font-size:13px; color:var(--ink2);
+    margin-top:10px; line-height:1.55;}
   .mode{
     font-family:'Outfit',sans-serif; font-weight:600; font-size:13.5px; cursor:pointer;
     background:rgba(27,36,80,.7); color:var(--ink2);
@@ -272,11 +272,11 @@ function genLedger(lv){
   }
   if(lv===2){
     const a=R(50,150), c=R(10,40), d=R(10,40); S.ans=a+c-d;
-    S.expl=`Na ordem: ${a} + ${c} = ${a+c} (o crédito entra), depois ${a+c} − ${d} = ${a+c-d} (o débito sai).`;
+    S.expl=`Na ordem — ${a} + ${c} = ${a+c} (o crédito entra), depois ${a+c} − ${d} = ${a+c-d} (o débito sai).`;
     return `Extrato de ${n}: saldo inicial R$ ${a} | crédito de mesada R$ ${c} | débito de figurinhas R$ ${d}. Saldo final?`;
   }
   const a=R(100,300), d1=R(20,60), c=R(30,80), d2=R(20,60); S.ans=a-d1+c-d2;
-  S.expl=`Linha por linha: ${a} − ${d1} = ${a-d1}, + ${c} = ${a-d1+c}, − ${d2} = ${a-d1+c-d2}. Truque de banqueiro: some todos os créditos, some todos os débitos, e subtraia um do outro.`;
+  S.expl=`Linha por linha — ${a} − ${d1} = ${a-d1}, + ${c} = ${a-d1+c}, − ${d2} = ${a-d1+c-d2}. Truque de banqueiro: some todos os créditos, some todos os débitos, e subtraia um do outro.`;
   return `Extrato de ${n}: saldo R$ ${a} | débito R$ ${d1} | crédito R$ ${c} | débito R$ ${d2}. Saldo final?`;
 }
 function genExpr(lv){
@@ -287,7 +287,7 @@ function genExpr(lv){
   }
   if(lv===2){
     const a=R(15,30), b=R(2,6), c=R(2,6), d=R(1,10); S.ans=a-(b+c)+d;
-    S.expl=`(${b} + ${c}) = ${b+c}. Da esquerda para a direita: ${a} − ${b+c} = ${a-(b+c)}, + ${d} = ${a-(b+c)+d}.`;
+    S.expl=`(${b} + ${c}) = ${b+c}. Da esquerda para a direita — ${a} − ${b+c} = ${a-(b+c)}, + ${d} = ${a-(b+c)+d}.`;
     return `Quanto vale:  ${a} − (${b} + ${c}) + ${d}`;
   }
   const a=R(5,12), b=R(3,Math.min(8,a-1)), c=R(2,6), e=R(12,25); S.ans=e-(a-b)-c;
@@ -303,11 +303,11 @@ function genDec(lv){
       return `Um caderno custa ${money(a)} e uma caneta ${money(b)}. Quanto custam juntos?  (ex: 12,50)`;
     }
     const big=Math.max(a,b), sm=Math.min(a,b); S.ans=+(big-sm).toFixed(2);
-    S.expl=`Vírgulas alinhadas: ${money(big)} − ${money(sm)} = ${money(S.ans)}. Se os centavos de cima forem menores, empresta 1 real (que vale 100 centavos).`;
+    S.expl=`Vírgulas alinhadas — ${money(big)} − ${money(sm)} = ${money(S.ans)}. Se os centavos de cima forem menores, empresta 1 real (que vale 100 centavos).`;
     return `Você tem ${money(big)} e gasta ${money(sm)}. Quanto sobra?  (ex: 3,45)`;
   }
   const a=R(1000,4999)/100, b=R(100,999)/100, c=R(100,999)/100; S.ans=+(a-b-c).toFixed(2);
-  S.expl=`Passo a passo: ${money(a)} − ${money(b)} = ${money(+(a-b).toFixed(2))}, depois − ${money(c)} = ${money(S.ans)}.`;
+  S.expl=`Passo a passo — ${money(a)} − ${money(b)} = ${money(+(a-b).toFixed(2))}, depois − ${money(c)} = ${money(S.ans)}.`;
   return `Você tem ${money(a)}. Compra pão por ${money(b)} e suco por ${money(c)}. Qual o troco?  (ex: 30,25)`;
 }
 function genFrac(lv){
@@ -327,22 +327,39 @@ function genFrac(lv){
   const p=pairs[R(0,pairs.length-1)], d1=p[0], d2=p[1], m=d2/d1;
   const a=R(1,d1-1), b=R(1,d2-1), num=a*m+b;
   S.ans=`${num}/${d2}`;
-  S.expl=`Denominadores diferentes! Transforme ${a}/${d1}: multiplique em cima e embaixo por ${m} → ${a*m}/${d2}. Agora sim: ${a*m}/${d2} + ${b}/${d2} = ${num}/${d2}. Só dá para somar pedaços do MESMO tamanho.`;
+  S.expl=`Denominadores diferentes! Transforme ${a}/${d1}: multiplique em cima e embaixo por ${m} → ${a*m}/${d2}. Agora sim — ${a*m}/${d2} + ${b}/${d2} = ${num}/${d2}. Só dá para somar pedaços do MESMO tamanho.`;
   drawFrac(d2, Math.min(num,d2), 0);
   return `Some:  ${a}/${d1} + ${b}/${d2}   (dica: iguale o tamanho dos pedaços primeiro)`;
 }
 /* ---------- tabuada: estratégias em vez de decoreba ---------- */
+const COMUT = [
+  (a,b,p)=>`É a mesma caixa virada de lado — ${b} fileiras de ${a} também dão ${p}.`,
+  (a,b,p)=>`Vire a conta de cabeça para baixo e nada muda — ${b} × ${a} continua ${p}.`,
+  (a,b,p)=>`Duas contas pelo preço de uma — ${b} × ${a} também dá ${p}.`,
+  (a,b,p)=>`${a} × ${b} e ${b} × ${a} são gêmeas, as duas valem ${p}.`,
+  (a,b,p)=>`Trocar a ordem não muda o resultado — ${b} × ${a} dá ${p} igualzinho.`,
+  (a,b,p)=>`Aprendeu uma, sabe as duas — ${b} × ${a} também é ${p}.`
+];
+const CENAS = [
+  (r,c)=>`Como uma cartela de ovos — ${r} fileiras de ${c}. Dá para saber o total sem contar um por um.`,
+  (r,c)=>`Igual a uma bandeja de brigadeiro com ${r} fileiras de ${c} docinhos.`,
+  (r,c)=>`Pense numa caixa de bombons — ${r} fileiras, ${c} em cada uma.`,
+  (r,c)=>`Como cadeiras na sala — ${r} filas com ${c} carteiras cada.`,
+  (r,c)=>`Igual a azulejos na parede — ${r} linhas de ${c}.`,
+  (r,c)=>`Como um tabuleiro — ${r} fileiras de ${c} casinhas.`,
+  (r,c)=>`Pense em ${r} pacotes com ${c} figurinhas em cada.`
+];
 function strat(a,b){
   switch(a){
-    case 2: return `Dobro de ${b}: ${b} + ${b} = ${a*b}.`;
-    case 3: return `Dobro de ${b} mais um ${b}: ${2*b} + ${b} = ${a*b}.`;
-    case 4: return `Dobro do dobro: ${b} → ${2*b} → ${a*b}.`;
-    case 5: return `Metade de 10 × ${b}: 10 × ${b} = ${10*b}, metade = ${a*b}.`;
-    case 6: return `5 × ${b} mais um ${b}: ${5*b} + ${b} = ${a*b}.`;
-    case 7: return `5 × ${b} mais 2 × ${b}: ${5*b} + ${2*b} = ${a*b}.`;
-    case 8: return `Dobro, dobro e dobro: ${b} → ${2*b} → ${4*b} → ${a*b}.`;
-    case 9: return `10 × ${b} menos um ${b}: ${10*b} − ${b} = ${a*b}.`;
-    case 10: return `É só acrescentar um zero: ${a*b}.`;
+    case 2: return `Dobro de ${b} — ${b} + ${b} = ${a*b}.`;
+    case 3: return `Dobro de ${b} mais um ${b} — ${2*b} + ${b} = ${a*b}.`;
+    case 4: return `Dobro do dobro — ${b} → ${2*b} → ${a*b}.`;
+    case 5: return `Metade de 10 × ${b}. Como 10 × ${b} = ${10*b}, a metade é ${a*b}.`;
+    case 6: return `5 × ${b} mais um ${b} — ${5*b} + ${b} = ${a*b}.`;
+    case 7: return `5 × ${b} mais 2 × ${b} — ${5*b} + ${2*b} = ${a*b}.`;
+    case 8: return `Dobro, dobro e dobro — ${b} → ${2*b} → ${4*b} → ${a*b}.`;
+    case 9: return `10 × ${b} menos um ${b} — ${10*b} − ${b} = ${a*b}.`;
+    case 10: return `É só acrescentar um zero — ${a*b}.`;
     default: return `${a} × ${b} = ${a*b}.`;
   }
 }
@@ -365,18 +382,18 @@ function genTab(lv){
   const roll = lv===1 ? 0 : Math.random();
   if(roll<0.62){
     S.ans=a*b;
-    S.expl=`${strat(a,b)} E lembre: ${a} × ${b} é a mesma coisa que ${b} × ${a} — isso corta pela metade o que você precisa saber!`;
+    S.expl=`${strat(a,b)} ${COMUT[R(0,COMUT.length-1)](a,b,a*b)}`;
     if(a<=10&&b<=10) drawArray(a,b);
     return `Quanto é  ${a} × ${b} ?`;
   }
   if(roll<0.82){
     S.ans=b;
-    S.expl=`Pense: quantos grupos de ${a} cabem em ${a*b}? A resposta é ${b}, porque ${a} × ${b} = ${a*b}. Você acabou de resolver uma equação — o quadradinho é o "x" da álgebra!`;
-    return `Qual número falta?    □ × ${a} = ${a*b}`;
+    S.expl=`Pense assim: quantos grupos de ${a} cabem em ${a*b}? São ${b}, porque ${a} × ${b} = ${a*b}. E olha só — você acabou de resolver uma equação! O quadradinho é exatamente o que mais tarde vira o "x" da álgebra.`;
+    return `Qual número está escondido?    □ × ${a} = ${a*b}`;
   }
   S.ans=b;
-  S.expl=`Divisão é a multiplicação ao contrário: ${a*b} ÷ ${a} = ${b} porque ${a} × ${b} = ${a*b}. Sempre que travar numa divisão, pergunte "vezes quanto dá esse número?".`;
-  return `Quanto é  ${a*b} ÷ ${a} ?`;
+  S.expl=`Dividir é a multiplicação de trás para frente. ${a*b} dividido por ${a} dá ${b}, porque ${a} × ${b} = ${a*b}. Quando travar numa divisão, pergunte "vezes quanto chega nesse número?".`;
+  return `Quanto é  ${a*b}  dividido por  ${a} ?    ( ${a*b} ÷ ${a} , que também se escreve ${a*b} : ${a} )`;
 }
 
 function drawArray(rows, cols){
@@ -386,7 +403,7 @@ function drawArray(rows, cols){
     for(let c=0;c<cols;c++) h+='<div class="dot"></div>';
     h+='</div>';
   }
-  h+=`<p class="cap">${rows} fileiras de ${cols} — multiplicar é contar grupos iguais</p>`;
+  h+=`<p class="cap">${CENAS[R(0,CENAS.length-1)](rows,cols)}</p>`;
   const v=$('arrayVis'); v.innerHTML=h; v.style.display='block';
 }
 
