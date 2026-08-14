@@ -39,7 +39,15 @@
   header p{color:var(--ink2); font-size:14px; margin-top:8px;}
 
   .modes{display:grid; grid-template-columns:repeat(2,1fr); gap:10px; margin-bottom:18px;}
-  @media(min-width:580px){.modes{grid-template-columns:repeat(4,1fr);}}
+  @media(min-width:580px){.modes{grid-template-columns:repeat(5,1fr);}}
+  .modes .mode:last-child:nth-child(odd){grid-column:span 2;}
+  @media(min-width:580px){.modes .mode:last-child:nth-child(odd){grid-column:span 1;}}
+  .arrayVis{display:none; margin-bottom:18px;}
+  .arrayVis .row{display:flex; gap:5px; margin-bottom:5px;}
+  .arrayVis .dot{width:15px; height:15px; border-radius:50%; background:rgba(94,234,212,.32);
+    border:1.5px solid var(--aurora);}
+  .arrayVis .cap{font-family:'Space Grotesk',monospace; font-size:10.5px; letter-spacing:1px;
+    text-transform:uppercase; color:var(--ink2); margin-top:8px;}
   .mode{
     font-family:'Outfit',sans-serif; font-weight:600; font-size:13.5px; cursor:pointer;
     background:rgba(27,36,80,.7); color:var(--ink2);
@@ -167,6 +175,10 @@
       <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 3v9l6.4 6.4"/></svg>
       Frações
     </button>
+    <button class="mode" data-mode="tab">
+      <svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M3 15h18M9 3v18M15 3v18"/></svg>
+      Tabuada
+    </button>
   </div>
 
   <div class="stats">
@@ -190,6 +202,7 @@
 
     <p id="question">Carregando…</p>
     <div id="fracVis"></div>
+    <div id="arrayVis" class="arrayVis"></div>
 
     <div id="plainInput">
       <input id="answer" type="text" inputmode="decimal" placeholder="Resposta" autocomplete="off">
@@ -236,7 +249,7 @@ const ICON = {
   bulb:'<path d="M9 18h6M10 21h4M12 3a6 6 0 00-3.5 10.9c.5.4.8 1 .8 1.6V16h5.4v-.5c0-.6.3-1.2.8-1.6A6 6 0 0012 3z"/>',
   eye:'<path d="M2 12s3.6-6 10-6 10 6 10 6-3.6 6-10 6-10-6-10-6z"/><circle cx="12" cy="12" r="2.6"/>'
 };
-const names = { ledger:'Banco da família', expr:'Expressões numéricas', dec:'Decimais', frac:'Frações' };
+const names = { ledger:'Banco da família', expr:'Expressões numéricas', dec:'Decimais', frac:'Frações', tab:'Tabuada' };
 const S = { mode:'ledger', score:0, streak:0, level:1, ans:null, expl:'', tries:0, best:0, done:false };
 
 const store={get(k){try{return localStorage.getItem(k)}catch(e){return null}},
@@ -318,6 +331,65 @@ function genFrac(lv){
   drawFrac(d2, Math.min(num,d2), 0);
   return `Some:  ${a}/${d1} + ${b}/${d2}   (dica: iguale o tamanho dos pedaços primeiro)`;
 }
+/* ---------- tabuada: estratégias em vez de decoreba ---------- */
+function strat(a,b){
+  switch(a){
+    case 2: return `Dobro de ${b}: ${b} + ${b} = ${a*b}.`;
+    case 3: return `Dobro de ${b} mais um ${b}: ${2*b} + ${b} = ${a*b}.`;
+    case 4: return `Dobro do dobro: ${b} → ${2*b} → ${a*b}.`;
+    case 5: return `Metade de 10 × ${b}: 10 × ${b} = ${10*b}, metade = ${a*b}.`;
+    case 6: return `5 × ${b} mais um ${b}: ${5*b} + ${b} = ${a*b}.`;
+    case 7: return `5 × ${b} mais 2 × ${b}: ${5*b} + ${2*b} = ${a*b}.`;
+    case 8: return `Dobro, dobro e dobro: ${b} → ${2*b} → ${4*b} → ${a*b}.`;
+    case 9: return `10 × ${b} menos um ${b}: ${10*b} − ${b} = ${a*b}.`;
+    case 10: return `É só acrescentar um zero: ${a*b}.`;
+    default: return `${a} × ${b} = ${a*b}.`;
+  }
+}
+const weak = {
+  load(){ try{ return JSON.parse(store.get('mm_weak')||'{}'); }catch(e){ return {}; } },
+  miss(k){ const w=this.load(); w[k]=(w[k]||0)+1; store.set('mm_weak',JSON.stringify(w)); },
+  hit(k){ const w=this.load(); if(w[k]){ w[k]--; if(w[k]<=0) delete w[k]; store.set('mm_weak',JSON.stringify(w)); } },
+  pick(){ const k=Object.keys(this.load()); return k.length?k[R(0,k.length-1)]:null; }
+};
+let lastFact=null;
+
+function genTab(lv){
+  const tables = lv===1?[2,5,10]:lv===2?[3,4,6]:[7,8,9];
+  let a,b;
+  const w = Math.random()<0.35 ? weak.pick() : null;
+  if(w){ const p=w.split('x').map(Number); a=p[0]; b=p[1]; }
+  else { a=tables[R(0,tables.length-1)]; b=R(2,10); }
+  lastFact=`${a}x${b}`;
+
+  const roll = lv===1 ? 0 : Math.random();
+  if(roll<0.62){
+    S.ans=a*b;
+    S.expl=`${strat(a,b)} E lembre: ${a} × ${b} é a mesma coisa que ${b} × ${a} — isso corta pela metade o que você precisa saber!`;
+    if(a<=10&&b<=10) drawArray(a,b);
+    return `Quanto é  ${a} × ${b} ?`;
+  }
+  if(roll<0.82){
+    S.ans=b;
+    S.expl=`Pense: quantos grupos de ${a} cabem em ${a*b}? A resposta é ${b}, porque ${a} × ${b} = ${a*b}. Você acabou de resolver uma equação — o quadradinho é o "x" da álgebra!`;
+    return `Qual número falta?    □ × ${a} = ${a*b}`;
+  }
+  S.ans=b;
+  S.expl=`Divisão é a multiplicação ao contrário: ${a*b} ÷ ${a} = ${b} porque ${a} × ${b} = ${a*b}. Sempre que travar numa divisão, pergunte "vezes quanto dá esse número?".`;
+  return `Quanto é  ${a*b} ÷ ${a} ?`;
+}
+
+function drawArray(rows, cols){
+  let h='';
+  for(let r=0;r<rows;r++){
+    h+='<div class="row">';
+    for(let c=0;c<cols;c++) h+='<div class="dot"></div>';
+    h+='</div>';
+  }
+  h+=`<p class="cap">${rows} fileiras de ${cols} — multiplicar é contar grupos iguais</p>`;
+  const v=$('arrayVis'); v.innerHTML=h; v.style.display='block';
+}
+
 function drawFrac(total, fill, fill2){
   let h='';
   for(let i=0;i<total;i++){
@@ -344,12 +416,13 @@ function setButtons(){
 function newQuestion(){
   S.tries=0; S.done=false;
   $('fracVis').style.display='none';
+  $('arrayVis').style.display='none';
   $('feedback').style.display='none';
   const isFrac = S.mode==='frac';
   $('plainInput').style.display = isFrac?'none':'flex';
   $('fracInput').style.display  = isFrac?'flex':'none';
   $('answer').value=''; $('num').value=''; $('den').value='';
-  const g={ledger:genLedger, expr:genExpr, dec:genDec, frac:genFrac}[S.mode];
+  const g={ledger:genLedger, expr:genExpr, dec:genDec, frac:genFrac, tab:genTab}[S.mode];
   $('question').textContent=g(Math.min(S.level,3));
   setButtons();
   (isFrac?$('num'):$('answer')).focus();
@@ -381,6 +454,8 @@ function check(){
     fb.innerHTML=`<b><svg viewBox="0 0 24 24">${ICON.bulb}</svg>Falta a resposta</b>Escreva o que você calculou e clique em Conferir.`;
     fb.style.display='block'; return;
   }
+
+  if(S.mode==='tab' && lastFact){ ok ? weak.hit(lastFact) : weak.miss(lastFact); }
 
   if(ok){
     S.streak++; S.score+=10*Math.min(S.level,3); S.done=true;
