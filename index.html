@@ -168,7 +168,8 @@
   button.sv:focus-visible{outline:2px solid var(--aurora); outline-offset:2px;}
   /* vocabulario de movimento: o JS so liga/desliga .on, o CSS faz o resto */
   .solveStage [data-at]{transition:opacity var(--t,.6s) ease,
-    transform var(--t,.6s) cubic-bezier(.34,.02,.2,1), fill var(--t,.6s) ease;}
+    transform var(--t,.6s) cubic-bezier(.34,.02,.2,1), fill var(--t,.6s) ease;
+    transition-delay:var(--d,0s);}
   .sv-app{opacity:0; transform:translateY(8px);}
   .sv-app.on{opacity:1; transform:translateY(0);}
   .sv-fade{opacity:0;}
@@ -177,6 +178,24 @@
   .sv-dim.on{opacity:.5;}
   .sv-tint{fill:var(--f0);}
   .sv-tint.on{fill:var(--f1);}
+  .sv-drop{opacity:0; transform:translateY(-14px);}
+  .sv-drop.on{opacity:1; transform:translateY(0);}
+  .sv-slide{transform:translate(var(--sx,0px), var(--sy,0px));}
+  .sv-slide.on{transform:translate(0,0);}
+  .sv-rot.on{transform:rotate(-90deg);}
+  .dcM{font-family:ui-monospace,'SF Mono',Menlo,Consolas,monospace; font-weight:700;
+    font-size:19px; text-anchor:middle;}
+  .dcH{font-family:'Space Grotesk','Outfit',sans-serif; font-weight:700; font-size:10px;
+    text-anchor:middle; letter-spacing:1.2px;}
+  .dcB{font-family:ui-monospace,'SF Mono',Menlo,Consolas,monospace; font-weight:700;
+    font-size:13px; text-anchor:middle;}
+  .tbN{font-family:'Outfit',system-ui,sans-serif; font-weight:700; font-size:17px; text-anchor:middle;}
+  .tbG{font-family:'Outfit',system-ui,sans-serif; font-weight:700; font-size:12px; text-anchor:end;}
+  .lgT{font-family:'Outfit',system-ui,sans-serif; font-weight:600; font-size:13px;}
+  .lgV{font-family:'Outfit',system-ui,sans-serif; font-weight:700; font-size:14.5px; text-anchor:end;}
+  .lgC{font-family:'Outfit',system-ui,sans-serif; font-weight:700; font-size:14.5px; text-anchor:middle;}
+  .exT{font-family:ui-monospace,'SF Mono',Menlo,Consolas,monospace; font-weight:700;
+    font-size:19px; text-anchor:middle;}
 
   @media (prefers-reduced-motion: reduce){*{transition:none !important; animation:none !important;}}
 </style>
@@ -302,31 +321,47 @@ function genLedger(lv){
   const n=kids[R(0,5)];
   if(lv===1){
     const a=R(20,80), g=R(5,a-5); S.ans=a-g;
-    S.expl=`Começou com ${a}. Débito (dinheiro que SAI) de ${g}. Então ${a} − ${g} = ${a-g}. Crédito é entrada (+), débito é saída (−).`;
+    S.expl=`Começou com ${a}. Débito (dinheiro que SAI) de ${g}. Então ${a} − ${g} = ${a-g}.`;
+    S.solve={kind:'ledger', data:{inicio:a, linhas:[{lab:'Lanche', sinal:'-', v:g}]}};
     return `${n} tinha R$ ${a} guardados e comprou um lanche de R$ ${g} (débito). Qual o saldo final?`;
   }
   if(lv===2){
     const a=R(50,150), c=R(10,40), d=R(10,40); S.ans=a+c-d;
     S.expl=`Na ordem — ${a} + ${c} = ${a+c} (o crédito entra), depois ${a+c} − ${d} = ${a+c-d} (o débito sai).`;
+    S.solve={kind:'ledger', data:{inicio:a, linhas:[{lab:'Mesada', sinal:'+', v:c},
+                                                    {lab:'Figurinhas', sinal:'-', v:d}]}};
     return `Extrato de ${n}: saldo inicial R$ ${a} | crédito de mesada R$ ${c} | débito de figurinhas R$ ${d}. Saldo final?`;
   }
   const a=R(100,300), d1=R(20,60), c=R(30,80), d2=R(20,60); S.ans=a-d1+c-d2;
-  S.expl=`Linha por linha — ${a} − ${d1} = ${a-d1}, + ${c} = ${a-d1+c}, − ${d2} = ${a-d1+c-d2}. Truque de banqueiro: some todos os créditos, some todos os débitos, e subtraia um do outro.`;
+  S.expl=`Linha por linha — ${a} − ${d1} = ${a-d1}, + ${c} = ${a-d1+c}, − ${d2} = ${a-d1+c-d2}.`;
+  S.solve={kind:'ledger', data:{inicio:a, linhas:[{lab:'Débito', sinal:'-', v:d1},
+                                                  {lab:'Crédito', sinal:'+', v:c},
+                                                  {lab:'Débito', sinal:'-', v:d2}]}};
   return `Extrato de ${n}: saldo R$ ${a} | débito R$ ${d1} | crédito R$ ${c} | débito R$ ${d2}. Saldo final?`;
 }
 function genExpr(lv){
   if(lv===1){
-    const a=R(2,15), b=R(3,15), c=R(2,b-1); S.ans=a+(b-c);
-    S.expl=`Parênteses primeiro: (${b} − ${c}) = ${b-c}. Depois ${a} + ${b-c} = ${a+(b-c)}.`;
+    const a=R(2,15), b=R(3,15), c=R(2,b-1); const p=b-c; S.ans=a+p;
+    S.expl=`Parênteses primeiro — (${b} − ${c}) = ${p}. Depois ${a} + ${p} = ${a+p}.`;
+    S.solve={kind:'expr', data:{
+      linhas:[[a,'+','(',b,'−',c,')'], [a,'+',p], [a+p]],
+      foco:[[2,6],[0,2]], novo:[2,0]}};
     return `Quanto vale —  ${a} + (${b} − ${c})`;
   }
   if(lv===2){
-    const a=R(15,30), b=R(2,6), c=R(2,6), d=R(1,10); S.ans=a-(b+c)+d;
-    S.expl=`(${b} + ${c}) = ${b+c}. Da esquerda para a direita — ${a} − ${b+c} = ${a-(b+c)}, + ${d} = ${a-(b+c)+d}.`;
+    const a=R(15,30), b=R(2,6), c=R(2,6), d=R(1,10); const p=b+c, q=a-p; S.ans=q+d;
+    S.expl=`(${b} + ${c}) = ${p}. Da esquerda para a direita — ${a} − ${p} = ${q}, + ${d} = ${q+d}.`;
+    S.solve={kind:'expr', data:{
+      linhas:[[a,'−','(',b,'+',c,')','+',d], [a,'−',p,'+',d], [q,'+',d], [q+d]],
+      foco:[[2,6],[0,2],[0,2]], novo:[2,0,0]}};
     return `Quanto vale —  ${a} − (${b} + ${c}) + ${d}`;
   }
-  const a=R(5,12), b=R(3,Math.min(8,a-1)), c=R(2,6), e=R(12,25); S.ans=e-(a-b)-c;
-  S.expl=`Parênteses: (${a} − ${b}) = ${a-b}. Depois ${e} − ${a-b} = ${e-(a-b)}, − ${c} = ${e-(a-b)-c}. Regra de ouro: parênteses primeiro, depois esquerda → direita.`;
+  const a=R(5,12), b=R(3,Math.min(8,a-1)), c=R(2,6), e=R(12,25);
+  const p=a-b, q=e-p; S.ans=q-c;
+  S.expl=`Parênteses — (${a} − ${b}) = ${p}. Depois ${e} − ${p} = ${q}, − ${c} = ${q-c}.`;
+  S.solve={kind:'expr', data:{
+    linhas:[[e,'−','(',a,'−',b,')','−',c], [e,'−',p,'−',c], [q,'−',c], [q-c]],
+    foco:[[2,6],[0,2],[0,2]], novo:[2,0,0]}};
   return `Quanto vale —  ${e} − (${a} − ${b}) − ${c}`;
 }
 function genDec(lv){
@@ -334,15 +369,22 @@ function genDec(lv){
     const a=R(100,999)/100, b=R(100,999)/100;
     if(Math.random()>0.4){
       S.ans=+(a+b).toFixed(2);
-      S.expl=`Alinhe as vírgulas: centavos com centavos, reais com reais. ${money(a)} + ${money(b)} = ${money(S.ans)}.`;
+      S.expl=`Alinhe as vírgulas — centavos com centavos, reais com reais. ${money(a)} + ${money(b)} = ${money(S.ans)}.`;
+      S.solve={kind:'dec', data:{op:'+', a:a, b:b, res:S.ans}};
       return `Um caderno custa ${money(a)} e uma caneta ${money(b)}. Quanto custam juntos?  (ex. 12,50)`;
     }
     const big=Math.max(a,b), sm=Math.min(a,b); S.ans=+(big-sm).toFixed(2);
     S.expl=`Vírgulas alinhadas — ${money(big)} − ${money(sm)} = ${money(S.ans)}. Se os centavos de cima forem menores, empresta 1 real (que vale 100 centavos).`;
+    S.solve={kind:'dec', data:{op:'-', a:big, b:sm, res:S.ans}};
     return `Você tem ${money(big)} e gasta ${money(sm)}. Quanto sobra?  (ex. 3,45)`;
   }
-  const a=R(1000,4999)/100, b=R(100,999)/100, c=R(100,999)/100; S.ans=+(a-b-c).toFixed(2);
-  S.expl=`Passo a passo — ${money(a)} − ${money(b)} = ${money(+(a-b).toFixed(2))}, depois − ${money(c)} = ${money(S.ans)}.`;
+  const b=R(100,999)/100, c=R(100,999)/100;
+  /* a tem que cobrir as duas compras e ainda deixar pelo menos R$ 1,00.
+     Sem isso o "troco" saía negativo em 1 de cada 20 questões. */
+  const a=R(Math.round((b+c)*100)+100, 4999)/100;
+  const p1=+(a-b).toFixed(2); S.ans=+(a-b-c).toFixed(2);
+  S.expl=`Passo a passo — ${money(a)} − ${money(b)} = ${money(p1)}, depois − ${money(c)} = ${money(S.ans)}.`;
+  S.solve={kind:'dec', data:{chain:true, a:a, b:b, c:c, p1:p1, res:S.ans}};
   return `Você tem ${money(a)}. Compra pão por ${money(b)} e suco por ${money(c)}. Qual o troco?  (ex. 30,25)`;
 }
 function genFrac(lv){
@@ -423,15 +465,18 @@ function genTab(lv){
   if(roll<0.62){
     S.ans=a*b;
     S.expl=`${strat(a,b)} ${COMUT[R(0,COMUT.length-1)](a,b,a*b)}`;
+    S.solve={kind:'tab', data:{a:a, b:b, mode:'mul'}};
     if(a<=10&&b<=10) drawArray(a,b);
     return `Quanto é  ${a} × ${b} ?`;
   }
   if(roll<0.82){
     S.ans=b;
-    S.expl=`Pense assim: quantos grupos de ${a} cabem em ${a*b}? São ${b}, porque ${a} × ${b} = ${a*b}. E olha só — você acabou de resolver uma equação! O quadradinho é exatamente o que mais tarde vira o "x" da álgebra.`;
+    S.solve={kind:'tab', data:{a:a, b:b, mode:'grupos'}};
+    S.expl=`Pense assim — quantos grupos de ${a} cabem em ${a*b}? São ${b}, porque ${a} × ${b} = ${a*b}. E olha só — você acabou de resolver uma equação! O quadradinho é exatamente o que mais tarde vira o "x" da álgebra.`;
     return `Qual número está escondido?    □ × ${a} = ${a*b}`;
   }
   S.ans=b;
+  S.solve={kind:'tab', data:{a:a, b:b, mode:'grupos'}};
   S.expl=`Dividir é a multiplicação de trás para frente. ${a*b} dividido por ${a} dá ${b}, porque ${a} × ${b} = ${a*b}. Quando travar numa divisão, pergunte "vezes quanto chega nesse número?".`;
   /* EXCECAO DELIBERADA a regra "nunca dois-pontos antes de numero": aqui o
      dois-pontos E o assunto (a outra notacao da divisao), nao pontuacao.
@@ -685,6 +730,413 @@ function fcSub(D){
     {say:`Sobraram ${left} pedaços de ${den} na barra.`}
   ]};
 }
+
+/* ---------- cena: decimais ---------- */
+/* grade de colunas fixas, montada da direita para a esquerda -- 0 e 1 são os
+   centavos, 2 é a vírgula (mais estreita), 3 em diante são os reais. Fonte
+   monoespaçada do sistema, então a coluna fecha sem medir texto e sem
+   depender de fonte baixada.                                              */
+const DC = {VW:320, CW:22, CC:12};
+const br = v => v.toFixed(2).replace('.', ',');
+const dcInt = v => Math.abs(v).toFixed(2).split('.')[0].length;
+
+/* mi = quantos dígitos de reais tem o maior número. Devolve os centros das
+   colunas e mantém o bloco inteiro centrado na tela. */
+function dcGrid(mi){
+  const w = [DC.CW, DC.CW, DC.CC];
+  for(let i=0;i<mi;i++) w.push(DC.CW);
+  const W = w.reduce((x,y)=>x+y, 0), sign = DC.CW, gap = 10;
+  const left = (DC.VW - (sign + gap + W))/2, dLeft = left + sign + gap, right = dLeft + W;
+  const cx = []; let acc = 0;
+  for(let k=0;k<w.length;k++){ cx.push(right - acc - w[k]/2); acc += w[k]; }
+  return {cx:cx, mi:mi, signX:left + sign/2, RL:dLeft - 4, RR:right + 4,
+          reais:(cx[3] + cx[2+mi])/2, cent:(cx[0] + cx[1])/2};
+}
+function dcDigits(G, v, y, color, stagger){
+  const p = Math.abs(v).toFixed(2).split('.'), ip = p[0], dp = p[1];
+  const d = c => stagger ? ` style="--d:${(c*0.09).toFixed(2)}s"` : '';
+  const T = (c, ch) => `<text class="dcM" x="${G.cx[c]}" y="${y}" fill="${color}"${d(c)}>${ch}</text>`;
+  let h = T(0, dp[1]) + T(1, dp[0]) + T(2, ',');
+  for(let j=0;j<ip.length;j++) h += T(3+j, ip[ip.length-1-j]);
+  return h;
+}
+function dcRule(G, y, at){
+  return `<line class="sv-fade" data-at="${at}" x1="${G.RL}" y1="${y}" x2="${G.RR}" y2="${y}"`
+       + ` stroke="var(--line2)" stroke-width="2" stroke-linecap="round"/>`;
+}
+function dcOp(G, y, op, at){
+  return `<g class="sv-fade" data-at="${at}">`
+       + `<text class="dcM" x="${G.signX}" y="${y}" fill="var(--ink2)">${op}</text></g>`;
+}
+/* guia vertical passando pelas vírgulas + rótulo das casas */
+function dcGuide(G, y1, y2, at){
+  return `<g class="sv-fade" data-at="${at}">`
+       + `<line x1="${G.cx[2]}" y1="${y1}" x2="${G.cx[2]}" y2="${y2}" stroke="var(--beam)"`
+       + ` stroke-width="1.5" stroke-dasharray="3 4" opacity=".85"/>`
+       + `<text class="dcH" x="${G.reais}" y="16" fill="var(--ink2)">REAIS</text>`
+       + `<text class="dcH" x="${G.cent}" y="16" fill="var(--ink2)">CENTAVOS</text>`
+       + `</g>`;
+}
+
+SCENES.dec = D => D.chain ? dcChain(D) : dcPair(D);
+
+/* dois números, com passo dedicado ao empréstimo ou ao vai-um */
+function dcPair(D){
+  const add = D.op === '+', v1 = D.a, v2 = D.b, res = D.res;
+  const y1 = 52, y2 = 84, yR = 96, y3 = 126, H = 140, yM = 34;
+  const G = dcGrid(Math.max(dcInt(v1), dcInt(v2), dcInt(res)));
+  const c1 = Math.round(v1*100) % 100, c2 = Math.round(v2*100) % 100;
+  const carry  =  add && c1 + c2 >= 100;
+  const borrow = !add && c1 < c2;
+  const last = (carry || borrow) ? 4 : 3;
+  /* quando os dois têm o mesmo tanto de reais não há desalinhamento real,
+     então os números entram soltos e encaixam na coluna no passo 2 */
+  let s1 = -(G.mi - dcInt(v1))*DC.CW, s2 = -(G.mi - dcInt(v2))*DC.CW;
+  if(s1 === 0 && s2 === 0){ s1 = 13; s2 = -11; }
+
+  let s = `<svg viewBox="0 0 ${DC.VW} ${H}" aria-hidden="true">`;
+  s += dcGuide(G, 24, yR + 4, 2);
+  s += `<g class="sv-drop" data-at="1"><g class="sv-slide" data-at="2" style="--sx:${s1}px">`
+     + dcDigits(G, v1, y1, 'var(--ink)') + `</g></g>`;
+  s += `<g class="sv-drop" data-at="1"><g class="sv-slide" data-at="2" style="--sx:${s2}px">`
+     + dcDigits(G, v2, y2, 'var(--ink)') + `</g></g>`;
+  s += dcOp(G, y2, add ? '+' : '−', 1);
+  s += dcRule(G, yR, 2);
+  if(borrow){
+    const u = +Math.abs(v1).toFixed(2).split('.')[0].slice(-1);
+    s += `<g class="sv-fade" data-at="3"><line x1="${G.cx[3]-9}" y1="${y1+3}" x2="${G.cx[3]+9}"`
+       + ` y2="${y1-14}" stroke="var(--pulse)" stroke-width="2" stroke-linecap="round"/></g>`;
+    s += `<g class="sv-drop" data-at="3"><text class="dcB" x="${G.cx[3]}" y="${yM}"`
+       + ` fill="var(--nova)">${u-1}</text></g>`;
+    s += `<g class="sv-fade" data-at="3"><g class="sv-slide" data-at="3"`
+       + ` style="--sx:${(G.cx[3]-G.cent).toFixed(1)}px">`
+       + `<text class="dcB" x="${G.cent}" y="${yM}" fill="var(--nova)">100</text></g></g>`;
+  }
+  if(carry){
+    s += `<g class="sv-fade" data-at="3"><g class="sv-slide" data-at="3"`
+       + ` style="--sx:${(G.cent-G.cx[3]).toFixed(1)}px">`
+       + `<text class="dcB" x="${G.cx[3]}" y="${yM}" fill="var(--nova)">1</text></g></g>`;
+  }
+  s += `<g class="sv-drop" data-at="${last}">` + dcDigits(G, res, y3, 'var(--aurora)', true) + `</g>`;
+  s += `</svg>`;
+
+  const steps = [
+    {say:'Cada número desce para a conta.'},
+    {say:'As vírgulas ficam uma embaixo da outra.'}
+  ];
+  if(borrow) steps.push({say:'Um real sai dos reais e vira cem centavos.'});
+  if(carry)  steps.push({say:'Passaram de cem centavos — sobe um real.'});
+  steps.push({say: add ? `Somamos coluna por coluna — dá ${br(res)}.`
+                       : `Tiramos coluna por coluna — sobram ${br(res)}.`});
+  return {svg:s, steps:steps};
+}
+
+/* nível 3 -- duas subtrações encadeadas; o parcial vira a nova primeira linha */
+function dcChain(D){
+  const y1 = 52, y2 = 84, r1 = 96, y3 = 124, y4 = 156, r2 = 168, y5 = 196, H = 210;
+  const G = dcGrid(Math.max(dcInt(D.a), dcInt(D.b), dcInt(D.c), dcInt(D.p1), dcInt(D.res)));
+  const sx = v => -(G.mi - dcInt(v))*DC.CW;
+
+  let s = `<svg viewBox="0 0 ${DC.VW} ${H}" aria-hidden="true">`;
+  s += dcGuide(G, 24, r2 + 4, 2);
+  s += `<g class="sv-drop" data-at="1"><g class="sv-slide" data-at="2" style="--sx:${sx(D.a)}px">`
+     + dcDigits(G, D.a, y1, 'var(--ink)') + `</g></g>`;
+  s += `<g class="sv-drop" data-at="1"><g class="sv-slide" data-at="2" style="--sx:${sx(D.b)}px">`
+     + dcDigits(G, D.b, y2, 'var(--nova)') + `</g></g>`;
+  s += dcOp(G, y2, '−', 1);
+  s += dcRule(G, r1, 2);
+  s += `<g class="sv-drop" data-at="3">` + dcDigits(G, D.p1, y3, 'var(--ink)', true) + `</g>`;
+  s += `<g class="sv-drop" data-at="4">` + dcDigits(G, D.c, y4, 'var(--nova)') + `</g>`;
+  s += dcOp(G, y4, '−', 4);
+  s += dcRule(G, r2, 4);
+  s += `<g class="sv-drop" data-at="4">` + dcDigits(G, D.res, y5, 'var(--aurora)', true) + `</g>`;
+  s += `</svg>`;
+
+  return {svg:s, steps:[
+    {say:'Os dois primeiros números descem para a conta.'},
+    {say:'As vírgulas ficam uma embaixo da outra.'},
+    {say:`Tiramos a primeira compra — sobram ${br(D.p1)}.`},
+    {say:`A outra compra desce e sobram ${br(D.res)}.`}
+  ]};
+}
+
+/* ---------- cena: tabuada ---------- */
+/* a grade se reagrupa conforme a estratégia que o strat() já ensina.
+   blocos -> quantas fileiras entram em cada passo; tira -> quantas saem no fim. */
+const TB = {VW:320, P:16, R:5.5};
+const TBC = {base:'rgba(94,234,212,.32)', bs:'var(--aurora)',
+             add:'rgba(255,184,77,.32)',  as:'var(--nova)',
+             off:'rgba(255,122,138,.30)', os:'var(--pulse)'};
+
+function tbDot(cx, cy, fill, stroke){
+  return `<circle cx="${cx.toFixed(1)}" cy="${cy.toFixed(1)}" r="${TB.R}" fill="${fill}"`
+       + ` stroke="${stroke}" stroke-width="1.5"/>`;
+}
+function tbTotal(y, txt, at, until){
+  return `<g class="sv-fade" data-at="${at}"${until?` data-until="${until}"`:''}>`
+       + `<text class="tbN" x="160" y="${y}" fill="var(--aurora)">${txt}</text></g>`;
+}
+
+/* estratégias: para cada a, quais fileiras entram em cada passo (ou saem) */
+function tbPlan(a, b){
+  const P = {
+    2 :{blocos:[1,1]},            3 :{blocos:[1,1,1]},
+    4 :{blocos:[1,1,2]},          6 :{blocos:[5,1]},
+    7 :{blocos:[5,2]},            8 :{blocos:[1,1,2,4]},
+    10:{blocos:[10], zero:true},
+    5 :{de:10, tira:5},           9 :{de:10, tira:1}
+  }[a];
+  return P || {blocos:[a]};
+}
+function tbFala(a, b, i, n){
+  const F = {
+    2 :[`Uma fileira com ${b} bolinhas.`,
+        `Dobramos a fileira — duas fileiras dão ${2*b}.`],
+    3 :[`Uma fileira com ${b} bolinhas.`,
+        `Dobramos — duas fileiras, ${2*b}.`,
+        `Mais uma fileira — chega a ${3*b}.`],
+    4 :[`Uma fileira com ${b} bolinhas.`,
+        `Dobramos — duas fileiras, ${2*b}.`,
+        `Dobramos outra vez — quatro fileiras, ${4*b}.`],
+    6 :[`Cinco fileiras de ${b} já dão ${5*b}.`,
+        `Entra mais uma fileira — chega a ${6*b}.`],
+    7 :[`Cinco fileiras de ${b} já dão ${5*b}.`,
+        `Entram mais duas fileiras — chega a ${7*b}.`],
+    8 :[`Uma fileira com ${b} bolinhas.`,
+        `Dobramos — duas fileiras, ${2*b}.`,
+        `Dobramos de novo — quatro fileiras, ${4*b}.`,
+        `E dobramos mais uma vez — dá ${8*b}.`],
+    10:[`Dez fileiras de ${b} bolinhas.`,
+        `Com dez é só pôr um zero — ${10*b}.`],
+    5 :[`Montamos dez fileiras de ${b}.`,
+        `Cortamos ao meio — cinco fileiras saem.`,
+        `Sobram cinco fileiras — dá ${5*b}.`],
+    9 :[`Montamos dez fileiras de ${b} — dá ${10*b}.`,
+        `Tiramos uma fileira inteira fora.`,
+        `Sobram nove fileiras — dá ${9*b}.`]
+  }[a];
+  return F ? F[i] : `São ${a} fileiras de ${b} — dá ${a*b}.`;
+}
+
+SCENES.tab = D => D.mode === 'mul' ? tbMul(D) : tbGrupos(D);
+
+function tbMul(D){
+  const a = D.a, b = D.b, plano = tbPlan(a, b);
+  const tira = !!plano.tira;
+  const linhas = tira ? plano.de : a;
+  const nBase = tira ? 3 : plano.blocos.length;
+  /* passo extra da comutativa só quando sobra espaço e nada foi retirado */
+  const gira = !tira && nBase <= 3;
+  const nSteps = nBase + (gira ? 1 : 0);
+  const lado = gira ? Math.max(a, b) : linhas;
+  /* quando fileiras saem da grade elas descem 14 -- sem essa folga o bloco
+     retirado encavala no total que corre embaixo */
+  const folga = tira ? 20 : 0;
+  const areaH = lado*TB.P, cyc = 10 + areaH/2;
+  const yTot = 10 + areaH + folga + 26, H = 10 + areaH + folga + 38;
+  const x0 = 160 - (b-1)*TB.P/2, y0 = cyc - (linhas-1)*TB.P/2;
+
+  let g = '';
+  if(tira){
+    /* dez fileiras entram; as de baixo saem no passo 2 */
+    for(let r=0;r<plano.de;r++){
+      const sai = r >= plano.de - plano.tira;
+      for(let c=0;c<b;c++){
+        const d = ((r*b+c)*0.012).toFixed(3);
+        if(sai){
+          g += `<g class="sv-move sv-dim" data-at="2" style="--dx:26px;--dy:14px;--d:${d}s">`
+             + `<g class="sv-drop" data-at="1" style="--d:${d}s">`
+             + tbDot(x0 + c*TB.P, y0 + r*TB.P, TBC.off, TBC.os) + `</g></g>`;
+        } else {
+          g += `<g class="sv-drop" data-at="1" style="--d:${d}s">`
+             + tbDot(x0 + c*TB.P, y0 + r*TB.P, TBC.base, TBC.bs) + `</g>`;
+        }
+      }
+    }
+    if(plano.tira === 5){
+      const yc = y0 + (plano.de - plano.tira - 0.5)*TB.P;
+      g += `<g class="sv-fade" data-at="2"><line x1="${x0-14}" y1="${yc}" x2="${x0+(b-1)*TB.P+14}"`
+         + ` y2="${yc}" stroke="var(--pulse)" stroke-width="2" stroke-dasharray="5 4"/></g>`;
+    }
+  } else {
+    let r = 0;
+    plano.blocos.forEach((qtd, i) => {
+      /* alterna a cor a cada bloco: no quadro final dá para ver 1+1+2+4,
+         não só "uma fileira e o resto" */
+      const alt = i % 2 === 1;
+      for(let k=0;k<qtd;k++, r++){
+        for(let c=0;c<b;c++){
+          g += `<g class="sv-drop" data-at="${i+1}" style="--d:${((k*b+c)*0.02).toFixed(3)}s">`
+             + tbDot(x0 + c*TB.P, y0 + r*TB.P, alt?TBC.add:TBC.base, alt?TBC.as:TBC.bs) + `</g>`;
+        }
+      }
+    });
+  }
+  let s = `<svg viewBox="0 0 ${TB.VW} ${H}" aria-hidden="true">`;
+  s += gira ? `<g class="sv-rot" data-at="${nSteps}" style="transform-origin:160px ${cyc}px">${g}</g>` : g;
+  /* total correndo embaixo da grade */
+  if(tira){
+    s += tbTotal(yTot, `${plano.de} × ${b} = ${plano.de*b}`, 1, 2);
+    s += tbTotal(yTot, `${a} × ${b} = ${a*b}`, 3);
+  } else {
+    let acc = 0;
+    plano.blocos.forEach((qtd, i) => {
+      acc += qtd;
+      const ate = (i === plano.blocos.length-1 && !gira) ? null : i+1;
+      s += tbTotal(yTot, `${acc} × ${b} = ${acc*b}`, i+1, ate);
+    });
+    if(gira) s += tbTotal(yTot + 0, `${b} × ${a} = ${a*b}`, nSteps);
+  }
+  s += `</svg>`;
+
+  const steps = [];
+  for(let i=0;i<nBase;i++) steps.push({say: tbFala(a, b, i, nBase)});
+  if(gira) steps.push({say:`Virada de lado dá o mesmo — ${a*b}.`});
+  return {svg:s, steps:steps};
+}
+
+/* □ × a = a·b  e  a·b ÷ a : o monte se reorganiza em grupos de a */
+function tbGrupos(D){
+  const a = D.a, b = D.b, tot = a*b, col = Math.min(10, tot), pr = Math.ceil(tot/col);
+  const lado = Math.max(pr, b), areaH = lado*TB.P, cyc = 10 + areaH/2;
+  const yTot = 10 + areaH + 26, H = 10 + areaH + 38;
+  const px0 = 160 - (col-1)*TB.P/2, py0 = cyc - (pr-1)*TB.P/2;
+  const fx0 = 160 - (a-1)*TB.P/2 + 12, fy0 = cyc - (b-1)*TB.P/2;
+
+  let s = `<svg viewBox="0 0 ${TB.VW} ${H}" aria-hidden="true">`;
+  for(let i=0;i<tot;i++){
+    const pX = px0 + (i%col)*TB.P, pY = py0 + Math.floor(i/col)*TB.P;
+    const fX = fx0 + (i%a)*TB.P,   fY = fy0 + Math.floor(i/a)*TB.P;
+    s += `<g class="sv-fade" data-at="1" style="--d:${((i)*0.008).toFixed(3)}s">`
+       + `<g class="sv-slide" data-at="2" style="--sx:${(pX-fX).toFixed(1)}px;--sy:${(pY-fY).toFixed(1)}px;`
+       + `--d:${((i%a)*0.03).toFixed(3)}s">`
+       + tbDot(fX, fY, TBC.base, TBC.bs) + `</g></g>`;
+  }
+  for(let gr=0;gr<b;gr++){
+    s += `<g class="sv-drop" data-at="3" style="--d:${(gr*0.07).toFixed(2)}s">`
+       + `<text class="tbG" x="${fx0 - TB.P}" y="${fy0 + gr*TB.P + 4}" fill="var(--nova)">${gr+1}</text></g>`;
+  }
+  s += tbTotal(yTot, `${tot} bolinhas`, 1, 1);
+  s += tbTotal(yTot, `grupos de ${a}`, 2, 2);
+  s += tbTotal(yTot, `${b} × ${a} = ${tot}`, 3);
+  s += `</svg>`;
+
+  return {svg:s, steps:[
+    {say:`Temos ${tot} bolinhas espalhadas.`},
+    {say:`Separamos em grupos de ${a}.`},
+    {say:`Contamos os grupos — são ${b}.`}
+  ]};
+}
+
+/* ---------- cena: banco da família ---------- */
+/* uma linha do extrato por passo, com o saldo parcial correndo ao lado */
+function lgLinha(y, lab, val, cor, saldo, at){
+  const meio = y - 5;
+  return `<g class="sv-drop" data-at="${at}">`
+       + `<text class="lgT" x="6" y="${y}" fill="var(--ink2)">${lab}</text>`
+       + `<text class="lgV" x="182" y="${y}" fill="${cor}">${val}</text>`
+       + `<line x1="6" y1="${y+11}" x2="312" y2="${y+11}" stroke="var(--line)" stroke-width="1"/>`
+       + `</g>`
+       + `<g class="sv-drop" data-at="${at}" style="--d:.20s">`
+       + `<rect x="196" y="${meio-13}" width="116" height="26" rx="9" fill="rgba(139,149,255,.14)"`
+       + ` stroke="var(--line2)" stroke-width="1"/>`
+       + `<text class="lgC" x="254" y="${y}" fill="var(--ink)">${saldo}</text></g>`;
+}
+SCENES.ledger = function(D){
+  const n = D.linhas.length + 1, PA = 32, Y0 = 34, H = Y0 + (n-1)*PA + 24;
+  let s = `<svg viewBox="0 0 320 ${H}" aria-hidden="true">`;
+  s += `<g class="sv-fade" data-at="1"><text class="lgT" x="196" y="12" fill="var(--ink2)"`
+     + ` style="font-size:10px; letter-spacing:1.2px">SALDO</text></g>`;
+  let saldo = D.inicio;
+  s += lgLinha(Y0, 'Saldo inicial', `R$ ${D.inicio}`, 'var(--ink2)', `R$ ${saldo}`, 1);
+  const steps = [{say:`O extrato começa com ${D.inicio} reais.`}];
+  D.linhas.forEach((L, i) => {
+    const sobe = L.sinal === '+';
+    saldo += sobe ? L.v : -L.v;
+    s += lgLinha(Y0 + (i+1)*PA, L.lab, `${sobe?'+':'−'} R$ ${L.v}`,
+                 sobe ? 'var(--aurora)' : 'var(--pulse)', `R$ ${saldo}`, i+2);
+    steps.push({say: sobe ? `Um crédito de ${L.v} — o saldo sobe para ${saldo}.`
+                          : `Um débito de ${L.v} — o saldo cai para ${saldo}.`});
+  });
+  s += `<g class="sv-fade" data-at="${n}" style="--d:.34s">`
+     + `<rect x="196" y="${Y0 + (n-1)*PA - 18}" width="116" height="26" rx="9" fill="none"`
+     + ` stroke="var(--aurora)" stroke-width="2"/></g>`;
+  s += `</svg>`;
+  return {svg:s, steps:steps};
+};
+
+/* ---------- cena: expressões numéricas ---------- */
+/* cada linha é a conta reescrita; o valor que nasce cai do lugar exato de onde
+   veio na linha de cima, então o colapso do parêntese fica visível.        */
+const EX = {CW:11.5, GAP:5, PA:30, Y0:26};
+function exPos(toks){
+  let W = (toks.length-1)*EX.GAP;
+  toks.forEach(t => W += String(t).length*EX.CW);
+  let x = (320 - W)/2;
+  return toks.map(t => {
+    const w = String(t).length*EX.CW, c = x + w/2;
+    x += w + EX.GAP;
+    return {c:c, w:w};
+  });
+}
+const exCor = t => /^[0-9]+$/.test(t) ? 'var(--ink)' : (t === '(' || t === ')') ? 'var(--beam)' : 'var(--ink2)';
+
+SCENES.expr = function(D){
+  const L = D.linhas, nL = L.length, H = EX.Y0 + (nL-1)*EX.PA + 26;
+  const pos = L.map(exPos);
+  const yOf = i => EX.Y0 + i*EX.PA;
+  let s = `<svg viewBox="0 0 320 ${H}" aria-hidden="true">`;
+
+  /* realce do trecho que vai colapsar, um por passo */
+  L.forEach((toks, i) => {
+    if(i >= nL-1) return;
+    const f = D.foco[i], p = pos[i];
+    const x1 = p[f[0]].c - p[f[0]].w/2 - 5, x2 = p[f[1]].c + p[f[1]].w/2 + 5;
+    s += `<g class="sv-fade" data-at="${i+1}" data-until="${i+1}">`
+       + `<rect x="${x1.toFixed(1)}" y="${yOf(i)-19}" width="${(x2-x1).toFixed(1)}" height="26" rx="8"`
+       + ` fill="rgba(139,149,255,.20)" stroke="var(--beam)" stroke-width="1.5"/></g>`;
+  });
+  /* linha 0 entra inteira no passo 1; o que está fora do parêntese apaga um pouco */
+  L[0].forEach((t, j) => {
+    const dentro = j >= D.foco[0][0] && j <= D.foco[0][1];
+    s += `<g class="sv-fade" data-at="1">`
+       + (dentro ? '' : `<g class="sv-dim" data-at="1" data-until="1">`)
+       + `<text class="exT" x="${pos[0][j].c.toFixed(1)}" y="${yOf(0)}" fill="${exCor(t)}">${t}</text>`
+       + (dentro ? '' : `</g>`) + `</g>`;
+  });
+  /* demais linhas: o token novo cai do centro do trecho que colapsou */
+  for(let i=1;i<nL;i++){
+    const f = D.foco[i-1], pa = pos[i-1];
+    const cen = (pa[f[0]].c - pa[f[0]].w/2 + pa[f[1]].c + pa[f[1]].w/2)/2;
+    L[i].forEach((t, j) => {
+      const novo = j === D.novo[i-1];
+      const p = pos[i][j];
+      if(novo){
+        s += `<g class="sv-fade" data-at="${i+1}"><g class="sv-slide" data-at="${i+1}"`
+           + ` style="--sx:${(cen-p.c).toFixed(1)}px;--sy:${-EX.PA}px">`
+           + `<text class="exT" x="${p.c.toFixed(1)}" y="${yOf(i)}" fill="var(--aurora)">${t}</text>`
+           + `</g></g>`;
+      } else {
+        s += `<g class="sv-drop" data-at="${i+1}" style="--d:.10s">`
+           + `<text class="exT" x="${p.c.toFixed(1)}" y="${yOf(i)}" fill="${exCor(t)}">${t}</text></g>`;
+      }
+    });
+  }
+  s += `</svg>`;
+
+  const r = L[nL-1][0];
+  const steps = [
+    {say:'Primeiro o que está dentro do parêntese.'},
+    {say:'O parêntese vira um número só.'}
+  ];
+  if(nL === 3){
+    steps.push({say:`Seguimos da esquerda para a direita — dá ${r}.`});
+  } else {
+    steps.push({say:'Agora seguimos da esquerda para a direita.'});
+    steps.push({say:`Última conta — o resultado é ${r}.`});
+  }
+  return {svg:s, steps:steps};
+};
 
 /* ---------- estado dos botões ---------- */
 function setButtons(){
