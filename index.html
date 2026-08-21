@@ -438,8 +438,8 @@ const money=v=>'R$ '+v.toFixed(2).replace('.',',');
    chamada de rede, nenhuma tela de entrada, nenhuma barra de turma.
    A chave anonima fica visivel no fonte de proposito -- nenhuma tabela
    e acessivel por ela, todo acesso passa por funcoes SECURITY DEFINER. */
-const SUPABASE_URL      = '';
-const SUPABASE_ANON_KEY = '';
+const SUPABASE_URL      = 'https://fqtnhzhihwsmtuxxapiy.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZxdG5oemhpaHdzbXR1eHhhcGl5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODcyNjQ1NTQsImV4cCI6MjEwMjg0MDU1NH0.KkwEcVKcqgOakkNzhn0_rIejoyebcGpeX2Y7TjKMxrM';
 
 /* ---------- uma unica porta de rede ----------
    Nunca lanca. Devolve {ok:true,dados} ou {ok:false,causa}, com causa em
@@ -602,7 +602,9 @@ function rodapeTurma(){
   if(!API.ok()){ l.hidden = true; return; }
   if(NET.token){
     l.hidden = false;
-    l.innerHTML = `Você está na turma ${NET.turma} como ${emojiDoApelido(NET.apelido)} ${NET.apelido}`;
+    /* sem "na turma ${turma}": a professora costuma batizar a turma de
+       "Turma do 5º ano", e sairia "na turma Turma do 5º ano" */
+    l.innerHTML = `${emojiDoApelido(NET.apelido)} ${NET.apelido} · ${NET.turma}`;
     l.disabled = true; l.classList.add('estatico');
   } else {
     l.hidden = false; l.textContent = 'Entrar numa turma';
