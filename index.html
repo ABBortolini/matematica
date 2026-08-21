@@ -1498,6 +1498,52 @@ function mostrarNovaVersao(){
   if(versaoNova && S.done) $('newVer').hidden = false;
 }
 
+/* ---------- o que o jogo manda para a turma ----------
+   Uma chamada de registrar_dominio por questao RESOLVIDA -- nunca a cada
+   check, senao uma questao com dois erros contaria duas vezes. Na tabuada o
+   item e o fato ('7x8'); nos outros quatro e o nivel ('n1','n2','n3').
+   Tudo passa pela fila, entao sem rede nada se perde.                     */
+function itemDaQuestao(modo, nivel){
+  return modo === 'tab' ? (lastFact || null) : 'n' + nivel;
+}
+
+/* acumulador de sessao: fecha a cada 10 questoes do mesmo modulo, e
+   descarrega o parcial ao trocar de modulo e ao sair da tela -- senao quem
+   responde 7 e fecha o app perderia as 7.                                 */
+const Sessao = {
+  d:null,
+  carregar(){ try{ this.d = JSON.parse(store.get('mm_sess') || 'null'); }catch(e){ this.d = null; } },
+  gravar(){ store.set('mm_sess', this.d ? JSON.stringify(this.d) : ''); },
+  conta(modulo, nivel, acertou, primeira){
+    if(!NET.token) return;
+    if(!this.d || this.d.modulo !== modulo){
+      this.descarregar();
+      this.d = {modulo:modulo, nivel:nivel, acertos:0, erros:0, primeira:0, n:0};
+    }
+    this.d.nivel = nivel;                     /* o nivel da ultima do bloco */
+    if(acertou){ this.d.acertos++; if(primeira) this.d.primeira++; }
+    else this.d.erros++;
+    this.d.n++;
+    if(this.d.n >= 10) this.descarregar(); else this.gravar();
+  },
+  descarregar(){
+    const d = this.d;
+    this.d = null; store.set('mm_sess','');
+    if(!d || !d.n || !NET.token) return;
+    Fila.add('registrar_sessao', {
+      p_token: NET.token, p_modulo: d.modulo, p_nivel: d.nivel,
+      p_acertos: d.acertos, p_erros: d.erros, p_primeira: d.primeira
+    });
+  }
+};
+
+function registrarResolvida(acertou, primeira, modulo, nivel, item){
+  if(!NET.token) return;
+  if(item) Fila.add('registrar_dominio',
+    {p_token:NET.token, p_modulo:modulo, p_item:item, p_acertou:acertou});
+  Sessao.conta(modulo, nivel, acertou, primeira);
+}
+
 /* ---------- estado dos botões ---------- */
 function setButtons(){
   const p=$('primary'), pi=$('primaryIcon'), pt=$('primaryText'), sk=$('skip');
@@ -1559,10 +1605,16 @@ function check(){
     fb.style.display='block'; return;
   }
 
+  /* fotografia da questao ANTES de mexer no estado: o ramo do acerto pode
+     subir o nivel, e a questao respondida foi a do nivel anterior */
+  const qModulo = S.mode, qNivel = Math.min(S.level, 3);
+  const qItem = itemDaQuestao(qModulo, qNivel), qPrimeira = S.tries === 0;
+
   if(S.mode==='tab' && lastFact){ ok ? weak.hit(lastFact) : weak.miss(lastFact); }
 
   if(ok){
     S.streak++; S.score+=10*Math.min(S.level,3); S.done=true;
+    registrarResolvida(true, qPrimeira, qModulo, qNivel, qItem);
     const msgs=['Isso aí','Mandou bem','Exato','Perfeito','Craque'];
     fb.className='ok';
     fb.innerHTML=`<b><svg viewBox="0 0 24 24">${ICON.star}</svg>${msgs[R(0,4)]}!</b>`;
@@ -1579,6 +1631,7 @@ function check(){
       fb.innerHTML=`<b><svg viewBox="0 0 24 24">${ICON.bulb}</svg>Quase lá</b>Tente de novo. A resposta deveria ser MAIOR ou MENOR que o número de onde você partiu?`;
     } else {
       S.done=true;
+      registrarResolvida(false, false, qModulo, qNivel, qItem);
       fb.className='err';
       fb.innerHTML=`<b><svg viewBox="0 0 24 24">${ICON.eye}</svg>Vamos ver juntos</b>`;
       if(!mountSolve(false)) fb.innerHTML+=S.expl;
@@ -1592,6 +1645,7 @@ $('modes').addEventListener('click', e=>{
   const b=e.target.closest('.mode'); if(!b) return;
   document.querySelectorAll('.mode').forEach(m=>m.classList.remove('on'));
   b.classList.add('on');
+  Sessao.descarregar();
   S.mode=b.dataset.mode; S.level=1; S.streak=0;
   $('modeLabel').querySelector('span').textContent=names[S.mode];
   refresh(); newQuestion();
@@ -1618,6 +1672,8 @@ $('entrada').addEventListener('keydown', e=>{
   if(e.shiftKey && document.activeElement===pri){ e.preventDefault(); ult.focus(); }
   else if(!e.shiftKey && document.activeElement===ult){ e.preventDefault(); pri.focus(); }
 });
+window.addEventListener('pagehide', ()=> Sessao.descarregar());
+document.addEventListener('visibilitychange', ()=>{ if(document.hidden) Sessao.descarregar(); });
 window.addEventListener('online', ()=> Fila.enviar(true));
 document.addEventListener('visibilitychange', ()=>{ if(!document.hidden) Fila.enviar(); });
 $('primary').addEventListener('click', ()=> S.done ? newQuestion() : check());
@@ -1627,6 +1683,7 @@ $('skip').addEventListener('click', ()=>{ if(!$('skip').disabled) newQuestion();
 $('num').addEventListener('keydown',e=>{ if(e.key==='Enter'){ e.preventDefault(); $('den').focus(); }});
 $('num').addEventListener('input',()=>{ if($('num').value.length>=1 && !isNaN(parseInt($('num').value,10))){} });
 
+Sessao.carregar();
 newQuestion();
 rodapeTurma();
 /* a tela de entrada abre DEPOIS do jogo montar, entao ela nunca trava nada:
