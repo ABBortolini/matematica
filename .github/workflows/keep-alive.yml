@@ -1,0 +1,20 @@
+name: keep-alive
+
+on:
+  schedule:
+    - cron: '0 12 * * *'      # todo dia às 12h UTC (09h de Brasília)
+  workflow_dispatch:          # permite rodar manualmente pelo botão
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Pingar o Supabase
+        run: |
+          curl -sS -X POST \
+            "${{ secrets.SUPABASE_URL }}/rest/v1/rpc/ping" \
+            -H "apikey: ${{ secrets.SUPABASE_ANON_KEY }}" \
+            -H "Content-Type: application/json" \
+            -d '{}' \
+            --fail-with-body
+          echo "ping enviado em $(date -u)"
