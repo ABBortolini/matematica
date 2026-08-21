@@ -236,10 +236,55 @@
   .exT{font-family:ui-monospace,'SF Mono',Menlo,Consolas,monospace; font-weight:700;
     font-size:19px; text-anchor:middle;}
 
+  /* ---------- entrada de turma ---------- */
+  .entrada{
+    position:fixed; inset:0; z-index:60; display:flex; align-items:center;
+    justify-content:center; padding:20px 16px; overflow-y:auto;
+    background:rgba(11,16,38,.965);
+  }
+  .entrada[hidden]{display:none;}
+  .entradaCard{
+    width:100%; max-width:390px;
+    background:linear-gradient(160deg, rgba(35,46,99,.95), rgba(20,27,61,.95));
+    border:1px solid var(--line2); border-radius:22px; padding:24px 20px 20px;
+  }
+  .entradaCard h2{font-size:23px; font-weight:800; letter-spacing:-.4px; margin-bottom:8px;}
+  .entradaCard .sub{color:var(--ink2); font-size:13.5px; line-height:1.6; margin-bottom:18px;}
+  .entradaCard label{
+    display:block; font-family:'Space Grotesk',monospace; font-size:10px; font-weight:700;
+    letter-spacing:1.4px; text-transform:uppercase; color:var(--ink2); margin-bottom:6px;
+  }
+  .entradaCard input{margin-bottom:14px;}
+  #codTurma{text-transform:uppercase; letter-spacing:2.5px;}
+  .entradaPrev{
+    display:flex; align-items:center; gap:10px; margin:-4px 0 14px;
+    font-size:13.5px; font-weight:600; color:var(--aurora);
+  }
+  .entradaPrev[hidden]{display:none;}
+  .entradaPrev b{font-size:23px; line-height:1;}
+  .entradaErro{
+    background:rgba(255,122,138,.10); border:1px solid rgba(255,122,138,.4);
+    color:#FFCBD2; border-radius:12px; padding:11px 13px; font-size:13.5px;
+    line-height:1.55; margin-bottom:14px;
+  }
+  .entradaErro[hidden]{display:none;}
+  #entradaOk{width:100%; justify-content:center; background:var(--aurora); color:#06251F;}
+  #entradaOk:disabled{opacity:.55; cursor:not-allowed;}
+  .linkish{
+    display:block; width:100%; margin-top:12px; min-height:44px; padding:8px 10px;
+    font-family:'Outfit',sans-serif; font-weight:600; font-size:13.5px; line-height:1.5;
+    cursor:pointer; background:transparent; border:none; color:var(--ink2);
+    text-decoration:underline; text-underline-offset:3px;
+  }
+  .linkish:focus-visible{outline:3px solid var(--ink); outline-offset:2px;}
+  .linkish[hidden]{display:none;}
+  .linkish.estatico{text-decoration:none; cursor:default; color:var(--aurora); font-weight:700;}
+
   @media (prefers-reduced-motion: reduce){*{transition:none !important; animation:none !important;}}
 </style>
 </head>
 <body>
+<div class="app" id="app">
 <div class="wrap">
   <header>
     <div class="badge">
@@ -342,7 +387,26 @@
       <svg viewBox="0 0 24 24"><path d="M14 3H7a2 2 0 00-2 2v14a2 2 0 002 2h10a2 2 0 002-2V8z"/><path d="M14 3v5h5M9 13h6M9 17h4"/></svg>
       <span>Tem mais de dois passos ou vírgula no meio? <b>Arme a conta no papel.</b> Escrever livra a cabeça de segurar números e sobra espaço para pensar — e o papel mostra exatamente onde o erro aconteceu.</span>
     </div>
+    <button type="button" class="linkish" id="turmaLink" hidden></button>
   </footer>
+</div>
+</div>
+
+<div class="entrada" id="entrada" hidden role="dialog" aria-modal="true" aria-labelledby="entradaTit">
+  <div class="entradaCard">
+    <h2 id="entradaTit">Entrar na turma</h2>
+    <p class="sub">Peça o código para a professora. E invente um apelido — não use seu nome de verdade.</p>
+    <label for="codTurma">Código da turma</label>
+    <input id="codTurma" type="text" inputmode="text" autocomplete="off" autocapitalize="characters"
+           spellcheck="false" maxlength="12" placeholder="TURMA5AB">
+    <label for="apelido">Seu apelido</label>
+    <input id="apelido" type="text" inputmode="text" autocomplete="off"
+           spellcheck="false" maxlength="20" placeholder="Foguete">
+    <div class="entradaPrev" id="entradaPrev" hidden></div>
+    <div class="entradaErro" id="entradaErro" hidden role="alert"></div>
+    <button type="button" class="act" id="entradaOk"><span id="entradaTexto">Entrar</span></button>
+    <button type="button" class="linkish" id="entradaPular">Jogar sem turma</button>
+  </div>
 </div>
 
 <script>
@@ -367,6 +431,214 @@ document.getElementById('best').textContent=S.best;
 const $=id=>document.getElementById(id);
 const R=(a,b)=>Math.floor(Math.random()*(b-a+1))+a;
 const money=v=>'R$ '+v.toFixed(2).replace('.',',');
+
+/* ======================= BACKEND DA TURMA =======================
+   Cole abaixo a Project URL e a chave anon public do Supabase.
+   Enquanto as duas estiverem vazias o jogo roda 100% local: nenhuma
+   chamada de rede, nenhuma tela de entrada, nenhuma barra de turma.
+   A chave anonima fica visivel no fonte de proposito -- nenhuma tabela
+   e acessivel por ela, todo acesso passa por funcoes SECURITY DEFINER. */
+const SUPABASE_URL      = '';
+const SUPABASE_ANON_KEY = '';
+
+/* ---------- uma unica porta de rede ----------
+   Nunca lanca. Devolve {ok:true,dados} ou {ok:false,causa}, com causa em
+   'config' (sem chaves), 'rede' (offline, falha ou tempo esgotado) ou
+   'http' (o banco respondeu recusando). Todo chamador trata ok:false
+   caindo no local -- nenhuma tela espera o servidor.                    */
+const API = {
+  ok(){
+    return /^https:\/\/[a-z0-9-]+\.supabase\.co\/?$/.test(SUPABASE_URL)
+        && SUPABASE_ANON_KEY.length > 20;
+  },
+  base(){ return SUPABASE_URL.replace(/\/$/, ''); },
+  call(fn, corpo, ms){
+    return new Promise(pronto => {
+      if(!this.ok())                return pronto({ok:false, causa:'config'});
+      if(navigator.onLine === false) return pronto({ok:false, causa:'rede'});
+      /* AbortController na mao: AbortSignal.timeout falta em tablet antigo */
+      const ac = new AbortController();
+      const t = setTimeout(()=>ac.abort(), ms || 8000);
+      fetch(this.base() + '/rest/v1/rpc/' + fn, {
+        method:'POST',
+        headers:{ apikey:SUPABASE_ANON_KEY,
+                  Authorization:'Bearer ' + SUPABASE_ANON_KEY,
+                  'Content-Type':'application/json' },
+        body: JSON.stringify(corpo || {}),
+        signal: ac.signal
+      })
+      .then(r => r.text().then(txt => {
+        clearTimeout(t);
+        let dados = null;
+        try{ dados = txt ? JSON.parse(txt) : null; }catch(e){}
+        if(r.ok) pronto({ok:true, dados:dados});
+        else pronto({ok:false, causa:'http', status:r.status,
+                     mensagem:(dados && dados.message) || ''});
+      }))
+      .catch(()=>{ clearTimeout(t); pronto({ok:false, causa:'rede'}); });
+    });
+  }
+};
+
+/* ---------- fila de escrita, persistida ----------
+   So entram escritas. Leitura nunca e enfileirada: falha e a tela cai no
+   cache. Envio sequencial e em ordem -- na primeira falha de rede para e
+   guarda o resto. Recusa do banco (4xx) e descartada, porque reenviar nao
+   resolve; 5xx volta para a fila.                                        */
+const Fila = {
+  enviando:false, ultimo:0,
+  ler(){ try{ return JSON.parse(store.get('mm_fila') || '[]'); }catch(e){ return []; } },
+  gravar(f){ store.set('mm_fila', JSON.stringify(f.slice(-200))); },
+  tamanho(){ return this.ler().length; },
+  add(fn, corpo){
+    if(!API.ok() || !NET.token) return;
+    const f = this.ler();
+    f.push({fn:fn, corpo:corpo, tent:0});
+    this.gravar(f);
+    this.enviar(true);
+  },
+  enviar(forcar){
+    if(this.enviando || !API.ok()) return;
+    if(navigator.onLine === false) return;
+    const agora = Date.now();
+    if(!forcar && agora - this.ultimo < 30000) return;
+    if(!this.ler().length) return;
+    this.ultimo = agora; this.enviando = true;
+    const passo = () => {
+      const f = this.ler();
+      if(!f.length){ this.enviando = false; return; }
+      const it = f[0];
+      API.call(it.fn, it.corpo).then(r => {
+        const atual = this.ler();
+        const recusa = r.causa === 'http' && r.status >= 400 && r.status < 500;
+        if(r.ok || recusa){
+          atual.shift(); this.gravar(atual); passo();
+        } else {
+          it.tent = (it.tent || 0) + 1;
+          if(it.tent >= 20) atual.shift(); else atual[0] = it;
+          this.gravar(atual);
+          this.enviando = false;   /* rede caiu -- tenta de novo mais tarde */
+        }
+      });
+    };
+    passo();
+  }
+};
+
+/* ---------- identidade da turma ---------- */
+const NET = {
+  token:    store.get('mm_token')     || '',
+  apelido:  store.get('mm_apelido')   || '',
+  turma:    store.get('mm_turma')     || '',
+  semTurma: store.get('mm_sem_turma') === '1',
+  guardar(t, apelido, turma){
+    this.token = t; this.apelido = apelido; this.turma = turma;
+    store.set('mm_token', t); store.set('mm_apelido', apelido); store.set('mm_turma', turma);
+  }
+};
+
+/* emoji derivado do apelido: mesmo apelido, mesmo emoji, em qualquer
+   aparelho. Nada e guardado e nada e coletado.                          */
+const EMOJIS = ['🚀','🌟','🪐','☄️','🛰️','🌙','⭐','🌠','🔭','👾','🌌','🌍','🌞','💫','🛸','🌜'];
+function emojiDoApelido(a){
+  let h = 5381;
+  for(let i=0;i<a.length;i++) h = ((h*33) ^ a.charCodeAt(i)) >>> 0;
+  return EMOJIS[h % EMOJIS.length];
+}
+
+/* mensagens exatas do banco -> linguagem de crianca */
+const ERROS_ENTRADA = {
+  'Código de turma não encontrado.':
+    'Esse código não existe. Confira as letras com quem te passou.',
+  'Esse apelido já está em uso nesta turma. Escolha outro.':
+    'Alguém da turma já usa esse apelido. Inventa outro?',
+  'O apelido deve ter entre 2 e 20 letras.':
+    'O apelido precisa ter de 2 a 20 letras.',
+  'Use apenas letras e números no apelido.':
+    'Use só letras e números no apelido.'
+};
+function traduzErro(r){
+  if(r.causa === 'rede')
+    return 'Sem internet agora. Você pode jogar sem turma e entrar depois.';
+  const m = (r.mensagem || '').trim();
+  if(ERROS_ENTRADA[m]) return ERROS_ENTRADA[m];
+  for(const k in ERROS_ENTRADA) if(m && (m.indexOf(k) >= 0 || k.indexOf(m) >= 0)) return ERROS_ENTRADA[k];
+  return 'Não deu para entrar agora. Tente de novo daqui a pouco.';
+}
+
+/* ---------- tela de entrada ---------- */
+let entradaAberta = false;
+
+function abrirEntrada(){
+  if(!API.ok() || entradaAberta) return;
+  entradaAberta = true;
+  $('entradaErro').hidden = true;
+  $('entrada').hidden = false;
+  $('app') && $('app').setAttribute('inert','');   /* o jogo atras fica fora do tab */
+  atualizaPrev();
+  $('codTurma').focus();
+}
+function fecharEntrada(){
+  entradaAberta = false;
+  $('entrada').hidden = true;
+  $('app') && $('app').removeAttribute('inert');
+  $('answer').focus();
+}
+function atualizaPrev(){
+  const a = $('apelido').value.trim();
+  const p = $('entradaPrev');
+  if(a.length >= 2){
+    p.innerHTML = `<b>${emojiDoApelido(a)}</b><span>Você vai aparecer como ${a}</span>`;
+    p.hidden = false;
+  } else p.hidden = true;
+}
+function mostraErroEntrada(txt){
+  const e = $('entradaErro');
+  e.textContent = txt; e.hidden = false;
+}
+function rodapeTurma(){
+  const l = $('turmaLink');
+  if(!l) return;
+  if(!API.ok()){ l.hidden = true; return; }
+  if(NET.token){
+    l.hidden = false;
+    l.innerHTML = `Você está na turma ${NET.turma} como ${emojiDoApelido(NET.apelido)} ${NET.apelido}`;
+    l.disabled = true; l.classList.add('estatico');
+  } else {
+    l.hidden = false; l.textContent = 'Entrar numa turma';
+    l.disabled = false; l.classList.remove('estatico');
+  }
+}
+
+function tentarEntrar(){
+  const cod = $('codTurma').value.trim().toUpperCase();
+  const ape = $('apelido').value.trim();
+  /* so o basico aqui -- quem manda nas regras do apelido e o banco, senao
+     eu bloquearia apelido valido que o front nao previu */
+  if(!cod)              return mostraErroEntrada('Escreva o código da turma.');
+  if(ape.length < 2 || ape.length > 20)
+                        return mostraErroEntrada('O apelido precisa ter de 2 a 20 letras.');
+  const b = $('entradaOk');
+  b.disabled = true; $('entradaTexto').textContent = 'Entrando…';
+  API.call('entrar_turma', {p_codigo:cod, p_apelido:ape}).then(r => {
+    b.disabled = false; $('entradaTexto').textContent = 'Entrar';
+    const linha = r.ok && Array.isArray(r.dados) ? r.dados[0] : null;
+    if(r.ok && linha && linha.token){
+      NET.guardar(linha.token, linha.apelido || ape, linha.turma_nome || cod);
+      NET.semTurma = false; store.set('mm_sem_turma','0');
+      rodapeTurma(); fecharEntrada();
+      if(typeof atualizarPainel === 'function') atualizarPainel(true);
+      Fila.enviar(true);
+    } else {
+      mostraErroEntrada(traduzErro(r));
+    }
+  });
+}
+
+function jogarSemTurma(){
+  NET.semTurma = true; store.set('mm_sem_turma','1');
+  rodapeTurma(); fecharEntrada();
+}
 
 /* ---------- geradores ---------- */
 function genLedger(lv){
@@ -1329,6 +1601,23 @@ $('newVer').addEventListener('click', ()=>{
 });
 document.addEventListener('visibilitychange', ()=>{ if(!document.hidden) checarVersao(); });
 setTimeout(checarVersao, 1500);   /* depois da primeira pintura */
+$('entradaOk').addEventListener('click', tentarEntrar);
+$('entradaPular').addEventListener('click', jogarSemTurma);
+$('turmaLink').addEventListener('click', ()=>{ if(!NET.token) abrirEntrada(); });
+$('apelido').addEventListener('input', atualizaPrev);
+$('codTurma').addEventListener('keydown', e=>{ if(e.key==='Enter'){ e.preventDefault(); $('apelido').focus(); }});
+$('apelido').addEventListener('keydown', e=>{ if(e.key==='Enter'){ e.preventDefault(); tentarEntrar(); }});
+$('entrada').addEventListener('keydown', e=>{
+  if(e.key==='Escape'){ e.preventDefault(); jogarSemTurma(); return; }
+  if(e.key!=='Tab') return;                       /* prende o tab no cartao */
+  const f=[...$('entrada').querySelectorAll('input,button')].filter(x=>!x.disabled);
+  if(!f.length) return;
+  const pri=f[0], ult=f[f.length-1];
+  if(e.shiftKey && document.activeElement===pri){ e.preventDefault(); ult.focus(); }
+  else if(!e.shiftKey && document.activeElement===ult){ e.preventDefault(); pri.focus(); }
+});
+window.addEventListener('online', ()=> Fila.enviar(true));
+document.addEventListener('visibilitychange', ()=>{ if(!document.hidden) Fila.enviar(); });
 $('primary').addEventListener('click', ()=> S.done ? newQuestion() : check());
 $('skip').addEventListener('click', ()=>{ if(!$('skip').disabled) newQuestion(); });
 ['answer','den'].forEach(id=>$(id).addEventListener('keydown',e=>{
@@ -1337,6 +1626,11 @@ $('num').addEventListener('keydown',e=>{ if(e.key==='Enter'){ e.preventDefault()
 $('num').addEventListener('input',()=>{ if($('num').value.length>=1 && !isNaN(parseInt($('num').value,10))){} });
 
 newQuestion();
+rodapeTurma();
+/* a tela de entrada abre DEPOIS do jogo montar, entao ela nunca trava nada:
+   fechou, o jogo ja esta ali pronto */
+if(API.ok() && !NET.token && !NET.semTurma) abrirEntrada();
+setTimeout(()=>Fila.enviar(true), 2500);
 </script>
 </body>
 </html>
