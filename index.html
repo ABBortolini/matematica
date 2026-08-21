@@ -318,16 +318,16 @@ function genExpr(lv){
   if(lv===1){
     const a=R(2,15), b=R(3,15), c=R(2,b-1); S.ans=a+(b-c);
     S.expl=`Parênteses primeiro: (${b} − ${c}) = ${b-c}. Depois ${a} + ${b-c} = ${a+(b-c)}.`;
-    return `Quanto vale:  ${a} + (${b} − ${c})`;
+    return `Quanto vale —  ${a} + (${b} − ${c})`;
   }
   if(lv===2){
     const a=R(15,30), b=R(2,6), c=R(2,6), d=R(1,10); S.ans=a-(b+c)+d;
     S.expl=`(${b} + ${c}) = ${b+c}. Da esquerda para a direita — ${a} − ${b+c} = ${a-(b+c)}, + ${d} = ${a-(b+c)+d}.`;
-    return `Quanto vale:  ${a} − (${b} + ${c}) + ${d}`;
+    return `Quanto vale —  ${a} − (${b} + ${c}) + ${d}`;
   }
   const a=R(5,12), b=R(3,Math.min(8,a-1)), c=R(2,6), e=R(12,25); S.ans=e-(a-b)-c;
   S.expl=`Parênteses: (${a} − ${b}) = ${a-b}. Depois ${e} − ${a-b} = ${e-(a-b)}, − ${c} = ${e-(a-b)-c}. Regra de ouro: parênteses primeiro, depois esquerda → direita.`;
-  return `Quanto vale:  ${e} − (${a} − ${b}) − ${c}`;
+  return `Quanto vale —  ${e} − (${a} − ${b}) − ${c}`;
 }
 function genDec(lv){
   if(lv<=2){
@@ -335,15 +335,15 @@ function genDec(lv){
     if(Math.random()>0.4){
       S.ans=+(a+b).toFixed(2);
       S.expl=`Alinhe as vírgulas: centavos com centavos, reais com reais. ${money(a)} + ${money(b)} = ${money(S.ans)}.`;
-      return `Um caderno custa ${money(a)} e uma caneta ${money(b)}. Quanto custam juntos?  (ex: 12,50)`;
+      return `Um caderno custa ${money(a)} e uma caneta ${money(b)}. Quanto custam juntos?  (ex. 12,50)`;
     }
     const big=Math.max(a,b), sm=Math.min(a,b); S.ans=+(big-sm).toFixed(2);
     S.expl=`Vírgulas alinhadas — ${money(big)} − ${money(sm)} = ${money(S.ans)}. Se os centavos de cima forem menores, empresta 1 real (que vale 100 centavos).`;
-    return `Você tem ${money(big)} e gasta ${money(sm)}. Quanto sobra?  (ex: 3,45)`;
+    return `Você tem ${money(big)} e gasta ${money(sm)}. Quanto sobra?  (ex. 3,45)`;
   }
   const a=R(1000,4999)/100, b=R(100,999)/100, c=R(100,999)/100; S.ans=+(a-b-c).toFixed(2);
   S.expl=`Passo a passo — ${money(a)} − ${money(b)} = ${money(+(a-b).toFixed(2))}, depois − ${money(c)} = ${money(S.ans)}.`;
-  return `Você tem ${money(a)}. Compra pão por ${money(b)} e suco por ${money(c)}. Qual o troco?  (ex: 30,25)`;
+  return `Você tem ${money(a)}. Compra pão por ${money(b)} e suco por ${money(c)}. Qual o troco?  (ex. 30,25)`;
 }
 function genFrac(lv){
   if(lv===1){
@@ -369,7 +369,7 @@ function genFrac(lv){
   S.expl=`Denominadores diferentes. Multiplique ${a}/${d1} em cima e embaixo por ${m} → ${a*m}/${d2}. Agora sim — ${a*m}/${d2} + ${b}/${d2} = ${num}/${d2}.`;
   S.solve={kind:'frac', data:{op:'+', a:a, d1:d1, b:b, den:d2, m:m, num:num}};
   drawFrac(d2, num, 0);
-  return `Some:  ${a}/${d1} + ${b}/${d2}   (dica: iguale o tamanho dos pedaços primeiro)`;
+  return `Some —  ${a}/${d1} + ${b}/${d2}   (dica: iguale o tamanho dos pedaços primeiro)`;
 }
 /* ---------- tabuada: estratégias em vez de decoreba ---------- */
 const COMUT = [
