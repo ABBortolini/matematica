@@ -144,6 +144,24 @@
   .paper svg{width:20px; height:20px; flex-shrink:0; margin-top:1px; stroke:var(--beam);
     fill:none; stroke-width:1.7; stroke-linecap:round; stroke-linejoin:round;}
   .paper b{color:var(--beam); font-weight:700;}
+  /* aviso de notação, mostrado uma única vez na vida */
+  .note{
+    display:flex; flex-wrap:wrap; align-items:flex-start; gap:11px; margin-bottom:16px;
+    background:rgba(139,149,255,.10); border:1px solid rgba(139,149,255,.34);
+    border-radius:14px; padding:12px 14px; font-size:13.5px; line-height:1.6; color:#C3CCF5;
+  }
+  .note[hidden]{display:none;}
+  .note svg{width:19px; height:19px; flex-shrink:0; margin-top:3px; stroke:var(--beam);
+    fill:none; stroke-width:1.8; stroke-linecap:round; stroke-linejoin:round;}
+  .note span{flex:1 1 190px;}
+  .note b{color:var(--beam); font-weight:700;}
+  .note button{
+    font-family:'Outfit',sans-serif; font-weight:700; font-size:13px; cursor:pointer;
+    background:transparent; color:var(--beam); border:1.5px solid rgba(139,149,255,.45);
+    border-radius:11px; padding:0 16px; min-height:44px; margin-left:auto; white-space:nowrap;
+  }
+  .note button:focus-visible{outline:2px solid var(--aurora); outline-offset:2px;}
+
   /* ---------- resolucao animada (motor de passos) ---------- */
   .solve{margin-top:16px; border:1px solid var(--line2); border-radius:16px;
     background:rgba(11,16,38,.45); padding:12px 12px 10px;}
@@ -253,6 +271,12 @@
       <span>Banco da família</span>
     </div>
 
+    <div class="note" id="divNote" hidden role="note">
+      <svg viewBox="0 0 24 24"><circle cx="12" cy="7.4" r="1.4"/><path d="M5 12h14"/><circle cx="12" cy="16.6" r="1.4"/></svg>
+      <span id="divNoteText"></span>
+      <button type="button" id="divNoteOk">Entendi</button>
+    </div>
+
     <p id="question">Carregando…</p>
     <div id="fracVis"></div>
     <div id="arrayVis" class="arrayVis"></div>
@@ -304,11 +328,14 @@ const ICON = {
   eye:'<path d="M2 12s3.6-6 10-6 10 6 10 6-3.6 6-10 6-10-6-10-6z"/><circle cx="12" cy="12" r="2.6"/>'
 };
 const names = { ledger:'Banco da família', expr:'Expressões numéricas', dec:'Decimais', frac:'Frações', tab:'Tabuada' };
-const S = { mode:'ledger', score:0, streak:0, level:1, ans:null, expl:'', solve:null, tries:0, best:0, done:false };
+const S = { mode:'ledger', score:0, streak:0, level:1, ans:null, expl:'', solve:null, nota:null,
+            tries:0, best:0, done:false };
 
 const store={get(k){try{return localStorage.getItem(k)}catch(e){return null}},
              set(k,v){try{localStorage.setItem(k,v)}catch(e){}}};
 S.best=parseInt(store.get('mm_best')||'0',10);
+/* espelho em memória: sem localStorage o aviso ainda aparece uma vez só por sessão */
+let viuDivisao = store.get('mm_viu_divisao')==='1';
 document.getElementById('best').textContent=S.best;
 
 const $=id=>document.getElementById(id);
@@ -478,10 +505,13 @@ function genTab(lv){
   S.ans=b;
   S.solve={kind:'tab', data:{a:a, b:b, mode:'grupos'}};
   S.expl=`Dividir é a multiplicação de trás para frente. ${a*b} dividido por ${a} dá ${b}, porque ${a} × ${b} = ${a*b}. Quando travar numa divisão, pergunte "vezes quanto chega nesse número?".`;
-  /* EXCECAO DELIBERADA a regra "nunca dois-pontos antes de numero": aqui o
-     dois-pontos E o assunto (a outra notacao da divisao), nao pontuacao.
-     Unico ponto do arquivo onde ele pode aparecer. Nao "corrigir". */
-  return `Quanto é  ${a*b}  dividido por  ${a} ?    ( ${a*b} ÷ ${a} , que também se escreve ${a*b} : ${a} )`;
+  /* A licao de notacao saiu do enunciado e virou o aviso #divNote, mostrado
+     uma unica vez na vida (mm_viu_divisao). O aviso e o UNICO lugar do jogo
+     onde o dois-pontos pode aparecer -- ali ele e o assunto, nao pontuacao.
+     No enunciado, nunca. Nao reintroduzir. */
+  S.nota = `<b>Dividir tem mais de um sinal.</b> ${a*b} ÷ ${a} e ${a*b} : ${a} `
+         + `são a mesma conta — os dois sinais querem dizer “dividido por”.`;
+  return `Quanto é  ${a*b}  dividido por  ${a} ?`;
 }
 
 function drawArray(rows, cols){
@@ -1151,8 +1181,9 @@ function setButtons(){
 }
 
 function newQuestion(){
-  S.tries=0; S.done=false; S.solve=null;
+  S.tries=0; S.done=false; S.solve=null; S.nota=null;
   clearSolve();
+  $('divNote').hidden=true;
   $('fracVis').style.display='none';
   $('arrayVis').style.display='none';
   $('feedback').style.display='none';
@@ -1162,6 +1193,11 @@ function newQuestion(){
   $('answer').value=''; $('num').value=''; $('den').value='';
   const g={ledger:genLedger, expr:genExpr, dec:genDec, frac:genFrac, tab:genTab}[S.mode];
   $('question').textContent=g(Math.min(S.level,3));
+  if(S.nota && !viuDivisao){
+    $('divNoteText').innerHTML=S.nota;
+    $('divNote').hidden=false;
+    viuDivisao=true; store.set('mm_viu_divisao','1');
+  }
   setButtons();
   (isFrac?$('num'):$('answer')).focus();
 }
@@ -1229,6 +1265,7 @@ $('modes').addEventListener('click', e=>{
   $('modeLabel').querySelector('span').textContent=names[S.mode];
   refresh(); newQuestion();
 });
+$('divNoteOk').addEventListener('click', ()=>{ $('divNote').hidden=true; });
 $('primary').addEventListener('click', ()=> S.done ? newQuestion() : check());
 $('skip').addEventListener('click', ()=>{ if(!$('skip').disabled) newQuestion(); });
 ['answer','den'].forEach(id=>$(id).addEventListener('keydown',e=>{
