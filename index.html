@@ -4,13 +4,10 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <meta name="theme-color" content="#0B1026">
-<!-- Pedido de revalidacao a cada abertura: o jogo e aberto por atalhos salvos
-     na tela inicial de varios aparelhos e nao da para pedir limpeza de cache
-     familia por familia. Ver a nota sobre o alcance real destas tags no
-     README -- navegadores atuais nao honram http-equiv de cache. -->
-<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
-<meta http-equiv="Pragma" content="no-cache">
-<meta http-equiv="Expires" content="0">
+<!-- Marca da versao publicada. O jogo compara esta marca com a do arquivo no
+     servidor para saber se saiu versao nova. Trocar a cada publicacao:
+     sed -i '' "s/name=\"mm-ver\" content=\"[^\"]*\"/name=\"mm-ver\" content=\"$(date +%Y%m%d-%H%M)\"/" index.html -->
+<meta name="mm-ver" content="20260821-0748">
 <title>Missão Matemática</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -155,6 +152,19 @@
   .paper svg{width:20px; height:20px; flex-shrink:0; margin-top:1px; stroke:var(--beam);
     fill:none; stroke-width:1.7; stroke-linecap:round; stroke-linejoin:round;}
   .paper b{color:var(--beam); font-weight:700;}
+  /* faixa de versão nova — nunca bloqueia, nunca recarrega sozinha */
+  .newver{
+    display:flex; align-items:center; justify-content:center; gap:9px; width:100%;
+    font-family:'Outfit',sans-serif; font-weight:700; font-size:13.5px; cursor:pointer;
+    color:var(--nova); background:rgba(255,184,77,.10);
+    border:1px solid rgba(255,184,77,.42); border-radius:14px;
+    padding:8px 14px; min-height:48px; margin-bottom:16px; line-height:1.35; text-align:center;
+  }
+  .newver[hidden]{display:none;}
+  .newver svg{width:18px; height:18px; flex-shrink:0; stroke:currentColor; fill:none;
+    stroke-width:2; stroke-linecap:round; stroke-linejoin:round;}
+  .newver:focus-visible{outline:3px solid var(--ink); outline-offset:2px;}
+
   /* aviso de notação, mostrado uma única vez na vida */
   .note{
     display:flex; flex-wrap:wrap; align-items:flex-start; gap:11px; margin-bottom:16px;
@@ -239,6 +249,11 @@
     <h1>Missão <em>Matemática</em></h1>
     <p>Escolha a missão e mostre que você manda nos números.</p>
   </header>
+
+  <button type="button" class="newver" id="newVer" hidden>
+    <svg viewBox="0 0 24 24"><path d="M20 12a8 8 0 11-2.3-5.6"/><path d="M20 4v4.5h-4.5"/></svg>
+    Tem novidade no jogo — toque para atualizar
+  </button>
 
   <div class="modes" id="modes">
     <button class="mode on" data-mode="ledger">
@@ -1179,6 +1194,36 @@ SCENES.expr = function(D){
   return {svg:s, steps:steps};
 };
 
+/* ---------- aviso de versão nova ----------
+   O HTML nao consegue controlar o proprio cache: meta http-equiv de cache e
+   ignorada pelos navegadores (testado A/B -- com no-store a pagina continua
+   sendo servida do cache). Entao o jogo pergunta ao servidor se existe versao
+   mais nova e, se existir, avisa. Nunca recarrega sozinho: isso apagaria a
+   questao que a crianca esta respondendo, e crianca que perde o que estava
+   fazendo fecha o app e nao volta.                                         */
+const MM_VER = document.querySelector('meta[name="mm-ver"]');
+let versaoNova = null, ultimaChecagem = 0;
+
+function checarVersao(){
+  if(!MM_VER || versaoNova) return;
+  if(navigator.onLine === false) return;      /* offline: nem tenta */
+  const agora = Date.now();
+  if(agora - ultimaChecagem < 60000) return;  /* no maximo uma vez por minuto */
+  ultimaChecagem = agora;
+  fetch(location.pathname + '?_=' + agora, {cache:'no-store'})
+    .then(r => r.ok ? r.text() : Promise.reject())
+    .then(t => {
+      const m = t.match(/name="mm-ver"\s+content="([^"]*)"/);
+      if(m && m[1] && m[1] !== MM_VER.content){ versaoNova = m[1]; mostrarNovaVersao(); }
+    })
+    .catch(()=>{});                           /* sem rede: silencio total */
+}
+
+/* so aparece com a questao ja conferida -- nunca no meio de uma resposta */
+function mostrarNovaVersao(){
+  if(versaoNova && S.done) $('newVer').hidden = false;
+}
+
 /* ---------- estado dos botões ---------- */
 function setButtons(){
   const p=$('primary'), pi=$('primaryIcon'), pt=$('primaryText'), sk=$('skip');
@@ -1266,6 +1311,7 @@ function check(){
     }
   }
   refresh(); setButtons(); fb.style.display='block';
+  mostrarNovaVersao();
 }
 
 $('modes').addEventListener('click', e=>{
@@ -1277,6 +1323,12 @@ $('modes').addEventListener('click', e=>{
   refresh(); newQuestion();
 });
 $('divNoteOk').addEventListener('click', ()=>{ $('divNote').hidden=true; });
+/* a query nova troca a chave do cache, entao o recarregamento vem do servidor */
+$('newVer').addEventListener('click', ()=>{
+  location.replace(location.pathname + '?v=' + encodeURIComponent(versaoNova || Date.now()));
+});
+document.addEventListener('visibilitychange', ()=>{ if(!document.hidden) checarVersao(); });
+setTimeout(checarVersao, 1500);   /* depois da primeira pintura */
 $('primary').addEventListener('click', ()=> S.done ? newQuestion() : check());
 $('skip').addEventListener('click', ()=>{ if(!$('skip').disabled) newQuestion(); });
 ['answer','den'].forEach(id=>$(id).addEventListener('keydown',e=>{
