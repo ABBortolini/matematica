@@ -144,6 +144,40 @@
   .paper svg{width:20px; height:20px; flex-shrink:0; margin-top:1px; stroke:var(--beam);
     fill:none; stroke-width:1.7; stroke-linecap:round; stroke-linejoin:round;}
   .paper b{color:var(--beam); font-weight:700;}
+  /* ---------- resolucao animada (motor de passos) ---------- */
+  .solve{margin-top:16px; border:1px solid var(--line2); border-radius:16px;
+    background:rgba(11,16,38,.45); padding:12px 12px 10px;}
+  .solve[hidden]{display:none;}
+  .solveStage svg{display:block; width:100%; height:auto;}
+  .fcN{font-family:'Outfit',system-ui,sans-serif; font-weight:700; font-size:15px; text-anchor:middle;}
+  .fcS{font-family:'Outfit',system-ui,sans-serif; font-weight:700; font-size:20px; text-anchor:middle;}
+  .solveSay{margin-top:10px; font-size:15px; font-weight:600; line-height:1.5;
+    color:var(--ink); min-height:2.3em;}
+  .solveList{margin:10px 0 0 20px; font-size:15px; line-height:1.6; color:var(--ink);}
+  .solveList li{margin-bottom:3px;}
+  .solveBar{display:flex; align-items:center; gap:8px; margin-top:10px;}
+  .solveDots{display:flex; gap:5px; margin-left:auto;}
+  .solveDots i{display:block; width:7px; height:7px; border-radius:50%;
+    background:var(--line2); transition:background .2s;}
+  .solveDots i.on{background:var(--aurora);}
+  button.sv{font-family:'Outfit',sans-serif; font-weight:700; font-size:13.5px; cursor:pointer;
+    min-height:44px; padding:0 14px; border-radius:12px; border:1.5px solid var(--line2);
+    background:rgba(35,46,99,.75); color:var(--ink);}
+  button.sv.key{background:var(--beam); border-color:var(--beam); color:#0B1026;}
+  button.sv:disabled{opacity:.32; cursor:not-allowed;}
+  button.sv:focus-visible{outline:2px solid var(--aurora); outline-offset:2px;}
+  /* vocabulario de movimento: o JS so liga/desliga .on, o CSS faz o resto */
+  .solveStage [data-at]{transition:opacity var(--t,.6s) ease,
+    transform var(--t,.6s) cubic-bezier(.34,.02,.2,1), fill var(--t,.6s) ease;}
+  .sv-app{opacity:0; transform:translateY(8px);}
+  .sv-app.on{opacity:1; transform:translateY(0);}
+  .sv-fade{opacity:0;}
+  .sv-fade.on{opacity:1;}
+  .sv-move.on{transform:translate(var(--dx,0px), var(--dy,0px));}
+  .sv-dim.on{opacity:.5;}
+  .sv-tint{fill:var(--f0);}
+  .sv-tint.on{fill:var(--f1);}
+
   @media (prefers-reduced-motion: reduce){*{transition:none !important; animation:none !important;}}
 </style>
 </head>
@@ -229,6 +263,7 @@
     </div>
 
     <div id="feedback"></div>
+    <div id="solve" class="solve" hidden></div>
   </div>
 
   <footer>
@@ -250,7 +285,7 @@ const ICON = {
   eye:'<path d="M2 12s3.6-6 10-6 10 6 10 6-3.6 6-10 6-10-6-10-6z"/><circle cx="12" cy="12" r="2.6"/>'
 };
 const names = { ledger:'Banco da família', expr:'Expressões numéricas', dec:'Decimais', frac:'Frações', tab:'Tabuada' };
-const S = { mode:'ledger', score:0, streak:0, level:1, ans:null, expl:'', tries:0, best:0, done:false };
+const S = { mode:'ledger', score:0, streak:0, level:1, ans:null, expl:'', solve:null, tries:0, best:0, done:false };
 
 const store={get(k){try{return localStorage.getItem(k)}catch(e){return null}},
              set(k,v){try{localStorage.setItem(k,v)}catch(e){}}};
@@ -313,22 +348,27 @@ function genDec(lv){
 function genFrac(lv){
   if(lv===1){
     const d=R(4,10), a=R(1,d-2), b=R(1,d-a-1); S.ans=`${a+b}/${d}`;
-    S.expl=`Denominadores iguais: some só os de cima. ${a}/${d} + ${b}/${d} = ${a+b}/${d}. O número de baixo diz o TAMANHO do pedaço — ele não muda.`;
+    S.expl=`Denominadores iguais — some só os de cima. ${a}/${d} + ${b}/${d} = ${a+b}/${d}.`;
+    S.solve={kind:'frac', data:{op:'+', a:a, b:b, den:d, d1:d, m:1, num:a+b}};
     drawFrac(d,a,b);
     return `Uma pizza foi cortada em ${d} pedaços. Você comeu ${a}/${d} e seu amigo ${b}/${d}. Quanto comeram juntos?`;
   }
   if(lv===2){
     const d=R(5,12), a=R(3,d-1), b=R(1,a-1); S.ans=`${a-b}/${d}`;
-    S.expl=`Mesmo denominador: subtraia só os de cima. ${a}/${d} − ${b}/${d} = ${a-b}/${d}.`;
+    S.expl=`Mesmo denominador — subtraia só os de cima. ${a}/${d} − ${b}/${d} = ${a-b}/${d}.`;
+    S.solve={kind:'frac', data:{op:'-', a:a, b:b, den:d, num:a-b}};
     drawFrac(d,a-b,0);
     return `De uma barra com ${d} quadradinhos, sobravam ${a}/${d}. Você comeu ${b}/${d}. Quanto sobrou agora?`;
   }
   const pairs=[[2,4],[3,6],[2,6],[4,8],[2,8],[3,9],[5,10],[2,10],[3,12],[4,12]];
   const p=pairs[R(0,pairs.length-1)], d1=p[0], d2=p[1], m=d2/d1;
-  const a=R(1,d1-1), b=R(1,d2-1), num=a*m+b;
+  /* b limitado a d2 - a*m: o resultado nunca passa de 1 inteiro.
+     Fracao impropria confunde nesta idade ("9 de 6" nao existe na barra). */
+  const a=R(1,d1-1), b=R(1,d2-a*m), num=a*m+b;
   S.ans=`${num}/${d2}`;
-  S.expl=`Denominadores diferentes! Transforme ${a}/${d1}: multiplique em cima e embaixo por ${m} → ${a*m}/${d2}. Agora sim — ${a*m}/${d2} + ${b}/${d2} = ${num}/${d2}. Só dá para somar pedaços do MESMO tamanho.`;
-  drawFrac(d2, Math.min(num,d2), 0);
+  S.expl=`Denominadores diferentes. Multiplique ${a}/${d1} em cima e embaixo por ${m} → ${a*m}/${d2}. Agora sim — ${a*m}/${d2} + ${b}/${d2} = ${num}/${d2}.`;
+  S.solve={kind:'frac', data:{op:'+', a:a, d1:d1, b:b, den:d2, m:m, num:num}};
+  drawFrac(d2, num, 0);
   return `Some:  ${a}/${d1} + ${b}/${d2}   (dica: iguale o tamanho dos pedaços primeiro)`;
 }
 /* ---------- tabuada: estratégias em vez de decoreba ---------- */
@@ -393,6 +433,9 @@ function genTab(lv){
   }
   S.ans=b;
   S.expl=`Dividir é a multiplicação de trás para frente. ${a*b} dividido por ${a} dá ${b}, porque ${a} × ${b} = ${a*b}. Quando travar numa divisão, pergunte "vezes quanto chega nesse número?".`;
+  /* EXCECAO DELIBERADA a regra "nunca dois-pontos antes de numero": aqui o
+     dois-pontos E o assunto (a outra notacao da divisao), nao pontuacao.
+     Unico ponto do arquivo onde ele pode aparecer. Nao "corrigir". */
   return `Quanto é  ${a*b}  dividido por  ${a} ?    ( ${a*b} ÷ ${a} , que também se escreve ${a*b} : ${a} )`;
 }
 
@@ -418,6 +461,231 @@ function drawFrac(total, fill, fill2){
   const v=$('fracVis'); v.innerHTML=h; v.style.display='flex';
 }
 
+/* ---------- motor de passos: resolucao animada ----------
+   Cada gerador so descreve S.solve = {kind, data}.
+   SCENES[kind](data) devolve {svg, steps}: o SVG inteiro ja montado, com cada
+   elemento marcado por data-at (passo em que ele muda de estado) e, opcionalmente,
+   data-until. Avancar de passo e so ligar/desligar a classe .on -- todo o
+   movimento mora no CSS. Sem biblioteca, sem import.                          */
+const REDUCED = window.matchMedia('(prefers-reduced-motion: reduce)');
+const SCENES = {};
+let svTimer = null;
+
+function applyStep(stage, n){
+  stage.querySelectorAll('[data-at]').forEach(el=>{
+    const from = +el.dataset.at;
+    const until = el.dataset.until ? +el.dataset.until : 99;
+    el.classList.toggle('on', n >= from && n <= until);
+  });
+}
+
+function clearSolve(){
+  if(svTimer){ clearTimeout(svTimer); svTimer = null; }
+  const w = $('solve'); w.innerHTML = ''; w.hidden = true;
+}
+
+/* fast=true no acerto (toca sozinho, rapido); fast=false no erro (a crianca conduz).
+   Nunca chama focus(): quem acertou e aperta Enter segue na hora.              */
+function mountSolve(fast){
+  clearSolve();
+  const sv = S.solve;
+  if(!sv || !SCENES[sv.kind]) return false;
+  let scene;
+  try{ scene = SCENES[sv.kind](sv.data); }catch(e){ return false; }
+  if(!scene || !scene.steps || scene.steps.length < 2) return false;
+
+  const w = $('solve'), steps = scene.steps, n = steps.length, reduced = REDUCED.matches;
+  let html = '<div class="solveStage" role="group" aria-label="Resolução passo a passo">'
+           + scene.svg + '</div>';
+  if(reduced){
+    html += '<ol class="solveList">' + steps.map(s=>'<li>'+s.say+'</li>').join('') + '</ol>';
+  } else {
+    html += '<p class="solveSay" aria-live="polite"></p>'
+          + '<div class="solveBar">'
+          + '<button type="button" class="sv key" data-sv="next">Próximo passo</button>'
+          + '<button type="button" class="sv" data-sv="all">Ver tudo</button>'
+          + '<span class="solveDots" aria-hidden="true">'
+          + steps.map(()=>'<i></i>').join('') + '</span></div>';
+  }
+  w.innerHTML = html; w.hidden = false;
+  /* o palco substitui o visual do enunciado: mantem a altura da arena estavel */
+  $('fracVis').style.display = 'none';
+  $('arrayVis').style.display = 'none';
+
+  const stage = w.querySelector('.solveStage');
+  if(reduced){ applyStep(stage, n); return true; }
+
+  stage.style.setProperty('--t', fast ? '.40s' : '.68s');
+  const say   = w.querySelector('.solveSay');
+  const dots  = Array.prototype.slice.call(w.querySelectorAll('.solveDots i'));
+  const bNext = w.querySelector('[data-sv="next"]');
+  const bAll  = w.querySelector('[data-sv="all"]');
+  let cur = 0;
+
+  function go(k){
+    cur = Math.max(1, Math.min(n, k));
+    applyStep(stage, cur);
+    say.textContent = steps[cur-1].say;
+    dots.forEach((d,i)=>d.classList.toggle('on', i < cur));
+    bAll.disabled = cur >= n;
+    bNext.textContent = cur >= n ? 'Rever' : 'Próximo passo';
+  }
+  function stop(){ if(svTimer){ clearTimeout(svTimer); svTimer = null; } }
+  function auto(){
+    stop();
+    if(cur >= n) return;
+    svTimer = setTimeout(()=>{ go(cur+1); auto(); }, 980);
+  }
+  bNext.addEventListener('click', ()=>{ stop(); go(cur >= n ? 1 : cur+1); });
+  bAll .addEventListener('click', ()=>{ stop(); go(n); });
+
+  /* reflow forcado: o navegador pinta o estado inicial antes do primeiro .on,
+     entao a transicao dispara sem depender de rAF (que perderia um clique
+     feito nos primeiros milissegundos). */
+  void stage.getBoundingClientRect();
+  go(1);
+  if(fast) auto();
+  return true;
+}
+
+/* ---------- cena: frações ---------- */
+const FC = {VW:320, X0:40, BW:276, BH:30, PAD:4, RX:6, LX:16};
+const FCOL = {a:'rgba(94,234,212,.82)', b:'rgba(255,184,77,.82)', out:'rgba(255,122,138,.82)'};
+/* divisórias em duas camadas: a clara aparece sobre o vazio da barra,
+   a escura aparece sobre o pedaço pintado. Uma cor só sumiria em metade dos casos. */
+const FDIV = {lo:'var(--line2)', hi:'#0B1026'};
+
+function fcBar(y){
+  return `<rect x="${FC.X0}" y="${y}" width="${FC.BW}" height="${FC.BH}" rx="${FC.RX}"`
+       + ` fill="rgba(11,16,38,.55)" stroke="var(--line2)" stroke-width="1.5"/>`;
+}
+function fcDivs(y, den, keep, wdt, color){
+  let h = '';
+  for(let i=1;i<den;i++){
+    if(keep && !keep(i)) continue;
+    const x = (FC.X0 + (i/den)*FC.BW).toFixed(2);
+    h += `<line x1="${x}" y1="${y+1}" x2="${x}" y2="${y+FC.BH-1}" stroke="${color}" stroke-width="${wdt}"/>`;
+  }
+  return h;
+}
+function fcFill(y, den, from, count, color){
+  const x = (FC.X0 + (from/den)*FC.BW).toFixed(2), w = ((count/den)*FC.BW).toFixed(2);
+  return `<rect x="${x}" y="${y+FC.PAD}" width="${w}" height="${FC.BH-2*FC.PAD}" rx="2"`
+       + (color ? ` fill="${color}"` : '') + `/>`;
+}
+function fcLab(y, n, d, color, attrs){
+  const x = FC.LX;
+  return `<g ${attrs||''}><text class="fcN" x="${x}" y="${y-5}" fill="${color}">${n}</text>`
+       + `<line x1="${x-12}" y1="${y}" x2="${x+12}" y2="${y}" stroke="${color}" stroke-width="2" stroke-linecap="round"/>`
+       + `<text class="fcN" x="${x}" y="${y+17}" fill="${color}">${d}</text></g>`;
+}
+function fcSign(x, y, txt, color, attrs){
+  /* attrs vai no <g>: um segundo class= no <text> seria ignorado pelo parser */
+  return `<g ${attrs||''}><text class="fcS" x="${x}" y="${y}" fill="${color}">${txt}</text></g>`;
+}
+
+SCENES.frac = D => D.op === '-' ? fcSub(D) : fcAdd(D);
+
+/* soma. m===1 -- denominadores já iguais, 3 passos.
+   m>1  -- a barra de cima é subdividida ANTES de qualquer junção, 4 passos. */
+function fcAdd(D){
+  const den = D.den, m = D.m || 1, aE = D.a*m, b = D.b, num = D.num;
+  const rA = 8, rB = 66, rR = 122, H = 158, g1 = 59, g2 = 116;
+  const cut = m > 1;
+  const mergeAt = cut ? 4 : 2;   /* só junta depois de igualar os tamanhos */
+  const barRAt  = cut ? 3 : 1;
+  const wA = (aE/den)*FC.BW;
+  const out = i => i % m === 0, inn = i => i % m !== 0;
+
+  let s = `<svg viewBox="0 0 ${FC.VW} ${H}" aria-hidden="true">`;
+  /* contornos */
+  s += `<g class="sv-app" data-at="1">${fcBar(rA)}${fcBar(rB)}${fcBar(rR)}</g>`;
+  /* divisórias claras (ficam por baixo dos pedaços) */
+  if(cut){
+    s += `<g class="sv-fade" data-at="1">${fcDivs(rA, den, out, 2.6, FDIV.lo)}</g>`;
+    s += `<g class="sv-fade" data-at="2">${fcDivs(rA, den, inn, 1.5, FDIV.lo)}</g>`;
+  } else {
+    s += `<g class="sv-fade" data-at="1">${fcDivs(rA, den, null, 2, FDIV.lo)}</g>`;
+  }
+  s += `<g class="sv-fade" data-at="1">${fcDivs(rB, den, null, 2, FDIV.lo)}</g>`;
+  s += `<g class="sv-fade" data-at="${barRAt}">${fcDivs(rR, den, null, 2, FDIV.lo)}</g>`;
+  /* pedaços pintados: aparecem no passo 1 e viajam inteiros no passo da junção,
+     levando junto as próprias divisórias escuras */
+  s += `<g class="sv-move" data-at="${mergeAt}" style="--dy:${rR-rA}px">`
+     + `<g class="sv-app" data-at="1">${fcFill(rA, den, 0, aE, FCOL.a)}</g>`
+     + (cut
+        ? `<g class="sv-fade" data-at="1">${fcDivs(rA, den, i=>out(i)&&i<aE, 2.6, FDIV.hi)}</g>`
+        + `<g class="sv-fade" data-at="2">${fcDivs(rA, den, i=>inn(i)&&i<aE, 1.5, FDIV.hi)}</g>`
+        : `<g class="sv-fade" data-at="1">${fcDivs(rA, den, i=>i<aE, 2, FDIV.hi)}</g>`)
+     + `</g>`;
+  s += `<g class="sv-move" data-at="${mergeAt}" style="--dx:${wA.toFixed(2)}px;--dy:${rR-rB}px">`
+     + `<g class="sv-app" data-at="1">${fcFill(rB, den, 0, b, FCOL.b)}</g>`
+     + `<g class="sv-fade" data-at="1">${fcDivs(rB, den, i=>i<b, 2, FDIV.hi)}</g>`
+     + `</g>`;
+  /* emenda entre os dois blocos que acabaram de pousar */
+  s += `<g class="sv-fade" data-at="${mergeAt}">${fcDivs(rR, den, i=>i===aE, 2, FDIV.hi)}</g>`;
+  /* destaque do resultado */
+  s += `<rect class="sv-fade" data-at="${mergeAt}" x="${FC.X0}" y="${rR}" width="${FC.BW}"`
+     + ` height="${FC.BH}" rx="${FC.RX}" fill="none" stroke="var(--aurora)" stroke-width="2.5"/>`;
+  /* rótulos e sinais */
+  s += fcLab(rA+15, D.a, D.d1 || den, 'var(--aurora)',
+             cut ? 'class="sv-fade" data-at="1" data-until="1"' : 'class="sv-fade" data-at="1"');
+  if(cut) s += fcLab(rA+15, aE, den, 'var(--aurora)', 'class="sv-app" data-at="2"');
+  s += fcLab(rB+15, b, den, 'var(--nova)', 'class="sv-fade" data-at="1"');
+  s += fcLab(rR+15, num, den, 'var(--ink)', `class="sv-app" data-at="${mergeAt}"`);
+  s += fcSign(FC.LX, g1, '+', 'var(--ink2)', 'class="sv-fade" data-at="1"');
+  if(cut){
+    s += fcSign(178, g1, '≠', 'var(--pulse)',  'class="sv-fade" data-at="1" data-until="2"');
+    s += fcSign(178, g1, '=', 'var(--aurora)', 'class="sv-fade" data-at="3"');
+  }
+  s += fcSign(FC.LX, g2, '=', 'var(--ink2)', `class="sv-fade" data-at="${mergeAt}"`);
+  s += `</svg>`;
+
+  const steps = cut ? [
+    {say:'Os pedaços têm tamanhos diferentes. Não dá para somar.'},
+    {say: m === 2 ? 'Cortamos cada pedaço da barra de cima ao meio.'
+                  : `Cortamos cada pedaço da barra de cima em ${m}.`},
+    {say:'Agora os dois têm pedaços do mesmo tamanho.'},
+    {say: num === den ? 'Juntamos os pedaços — dá a barra inteira.'
+                      : `Juntamos os pedaços — dá ${num} de ${den}.`}
+  ] : [
+    {say:'Os dois já têm pedaços do mesmo tamanho.'},
+    {say:'Juntamos os pedaços pintados numa barra só.'},
+    {say: num === den ? 'No total dá a barra inteira.'
+                      : `No total são ${num} pedaços de ${den}.`}
+  ];
+  return {svg:s, steps:steps};
+}
+
+/* subtração com denominadores iguais: os pedaços comidos saem da barra */
+function fcSub(D){
+  const den = D.den, a = D.a, b = D.b, left = a - b;
+  const rA = 18, H = 96, dy = 44;
+
+  let s = `<svg viewBox="0 0 ${FC.VW} ${H}" aria-hidden="true">`;
+  s += `<g class="sv-app" data-at="1">${fcBar(rA)}</g>`;
+  s += `<g class="sv-fade" data-at="1">${fcDivs(rA, den, null, 2, FDIV.lo)}</g>`;
+  s += `<g class="sv-app" data-at="1">${fcFill(rA, den, 0, left, FCOL.a)}</g>`;
+  s += `<g class="sv-fade" data-at="1">${fcDivs(rA, den, i=>i<=left, 2, FDIV.hi)}</g>`;
+  s += `<g class="sv-move sv-dim" data-at="2" style="--dy:${dy}px">`
+     + `<g class="sv-app" data-at="1"><g class="sv-tint" data-at="2"`
+     + ` style="--f0:${FCOL.a};--f1:${FCOL.out}">` + fcFill(rA, den, left, b, null) + `</g></g>`
+     + `<g class="sv-fade" data-at="1">${fcDivs(rA, den, i=>i>left&&i<a, 2, FDIV.hi)}</g>`
+     + `</g>`;
+  s += `<rect class="sv-fade" data-at="3" x="${FC.X0}" y="${rA}"`
+     + ` width="${((left/den)*FC.BW).toFixed(2)}" height="${FC.BH}" rx="${FC.RX}"`
+     + ` fill="none" stroke="var(--aurora)" stroke-width="2.5"/>`;
+  s += fcLab(rA+15, a, den, 'var(--aurora)', 'class="sv-fade" data-at="1" data-until="2"');
+  s += fcLab(rA+15, left, den, 'var(--ink)', 'class="sv-app" data-at="3"');
+  s += `</svg>`;
+
+  return {svg:s, steps:[
+    {say:`A barra tinha ${a} pedaços pintados de ${den}.`},
+    {say:`Você comeu ${b} — esses pedaços saem da barra.`},
+    {say:`Sobraram ${left} pedaços de ${den} na barra.`}
+  ]};
+}
+
 /* ---------- estado dos botões ---------- */
 function setButtons(){
   const p=$('primary'), pi=$('primaryIcon'), pt=$('primaryText'), sk=$('skip');
@@ -431,7 +699,8 @@ function setButtons(){
 }
 
 function newQuestion(){
-  S.tries=0; S.done=false;
+  S.tries=0; S.done=false; S.solve=null;
+  clearSolve();
   $('fracVis').style.display='none';
   $('arrayVis').style.display='none';
   $('feedback').style.display='none';
@@ -478,7 +747,8 @@ function check(){
     S.streak++; S.score+=10*Math.min(S.level,3); S.done=true;
     const msgs=['Isso aí','Mandou bem','Exato','Perfeito','Craque'];
     fb.className='ok';
-    fb.innerHTML=`<b><svg viewBox="0 0 24 24">${ICON.star}</svg>${msgs[R(0,4)]}!</b>${S.expl}`;
+    fb.innerHTML=`<b><svg viewBox="0 0 24 24">${ICON.star}</svg>${msgs[R(0,4)]}!</b>`;
+    if(!mountSolve(true)) fb.innerHTML+=S.expl;
     if(S.streak%4===0 && S.level<3){
       S.level++; $('luNum').textContent=S.level;
       const lu=$('levelup'); lu.style.display='flex';
@@ -492,7 +762,8 @@ function check(){
     } else {
       S.done=true;
       fb.className='err';
-      fb.innerHTML=`<b><svg viewBox="0 0 24 24">${ICON.eye}</svg>Vamos ver juntos</b>${S.expl}`;
+      fb.innerHTML=`<b><svg viewBox="0 0 24 24">${ICON.eye}</svg>Vamos ver juntos</b>`;
+      if(!mountSolve(false)) fb.innerHTML+=S.expl;
     }
   }
   refresh(); setButtons(); fb.style.display='block';
