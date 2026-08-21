@@ -4,6 +4,13 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <meta name="theme-color" content="#0B1026">
+<!-- Pedido de revalidacao a cada abertura: o jogo e aberto por atalhos salvos
+     na tela inicial de varios aparelhos e nao da para pedir limpeza de cache
+     familia por familia. Ver a nota sobre o alcance real destas tags no
+     README -- navegadores atuais nao honram http-equiv de cache. -->
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
 <title>Missão Matemática</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -116,6 +123,10 @@
   #primary.next{background:var(--nova); color:#3A2400;}
   #skip{background:transparent; color:var(--ink2); border:1.5px solid var(--line2);}
   #skip:disabled{opacity:.32; cursor:not-allowed;}
+  /* anel de foco explicito: o padrao do navegador sai laranja em cima do
+     botao laranja. Com offset o anel cai no fundo escuro, entao contrasta
+     nos dois estados do botao principal. */
+  button.act:focus-visible, .mode:focus-visible{outline:3px solid var(--ink); outline-offset:2px;}
 
   #feedback{display:none; margin-top:18px; border-radius:14px; padding:15px 17px;
     font-size:15px; line-height:1.62;}
