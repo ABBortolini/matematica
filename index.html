@@ -628,8 +628,19 @@ const Fila = {
       const it = f[0];
       API.call(it.fn, it.corpo).then(r => {
         const atual = this.ler();
-        if(sessaoMorta(r)){        /* nao descarta: o item ainda vale se ela voltar */
-          this.enviando = false; sessaoExpirou(); return;
+        if(sessaoMorta(r)){
+          /* Guardar o item para sempre travaria a fila: um aluno removido do
+             banco nunca sera aceito, e a cabeca da fila nunca sairia. Entao
+             conta a recusa e desiste na quinta.                              */
+          it.tent = (it.tent || 0) + 1;
+          if(it.tent >= 5){ atual.shift(); this.gravar(atual); passo(); return; }
+          atual[0] = it; this.gravar(atual);
+          this.enviando = false;
+          /* so derruba a sessao se o item for de QUEM ESTA LOGADO agora. Sem
+             esta guarda, um item velho de um aluno removido expulsaria da tela
+             o aluno que acabou de entrar. */
+          if(it.corpo && it.corpo.p_token === NET.token) sessaoExpirou();
+          return;
         }
         const recusa = r.causa === 'http' && r.status >= 400 && r.status < 500;
         if(r.ok || recusa){
